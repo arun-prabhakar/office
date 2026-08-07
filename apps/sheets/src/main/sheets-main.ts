@@ -2079,7 +2079,7 @@ export function registerSheetsAiIpc(): void {
     sessionFor(event)
     const request = aiChatRequestSchema.parse(input)
     const provider = request.settings.provider as AiProviderId
-    let config = request.settings.providers[provider]
+    const config = request.settings.providers[provider]
 
     if (!config?.apiKey) {
       return {
@@ -2102,7 +2102,7 @@ export function registerSheetsAiIpc(): void {
     const tools = request.tools ?? []
     const maxTokens = request.maxTokens ?? 8192
     const provider = request.settings.provider as AiProviderId
-    let config = request.settings.providers[provider]
+    const config = request.settings.providers[provider]
     const send = (chunk: AiStreamChunk) => {
       if (!event.sender.isDestroyed()) event.sender.send(IPC_CHANNELS.aiStreamChunk, chunk)
     }

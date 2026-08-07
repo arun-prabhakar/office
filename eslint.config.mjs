@@ -18,6 +18,7 @@ export default tseslint.config(
       'scripts/drivers/**',
       'apps/*/build/**',
       '**/next-env.d.ts',
+      '**/.next/**',
     ],
   },
   js.configs.recommended,

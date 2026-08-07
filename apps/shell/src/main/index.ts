@@ -106,14 +106,7 @@ import {
   requestPdfSaveAs,
   setPdfSaveAsInFlight,
 } from '../../../pdf/src/main/pdf-main'
-import {
-  configureMarkdownRuntime,
-  markdownFileRenamed,
-  markdownIsDirty,
-  requestMarkdownClose,
-  requestMarkdownSave,
-  markdownFilePath,
-} from '../../../markdown/src/main/markdown-main'
+import { configureMarkdownRuntime } from '../../../markdown/src/main/markdown-main'
 import type { RecentEntry, RecentPage, RenameResult } from '../shared/home-api'
 import { HOME_CHANNELS } from '../shared/home-api'
 import type { TabKind } from '../shared/tabs-api'

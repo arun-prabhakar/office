@@ -16,11 +16,10 @@ import {
   type DeckProgressEvent,
   type PageProgressItem,
 } from './slides-skill'
-import { extractJsonObject, parseOutlineJson } from './outline-json'
 import { createFilesSkill } from './files-skill'
 import { createElectronTransport } from './transport'
 import { renderSlidesToPngBase64 } from '../export-render'
-import { isQcEnabled, mergeQcPages, qcSlidePage, QC_MAX_PAGES } from './slide-qc'
+import { isQcEnabled, qcSlidePage, QC_MAX_PAGES } from './slide-qc'
 import { useI18n, t as tGlobal, aiLangDirective, type TFunc } from '../i18n/locale'
 import { Markdown } from '@prismoffice/ui'
 import { IconSparkle } from '../components/icons'
@@ -586,7 +585,7 @@ export function AiPanel({
   }
 
   /** Update the last assistant message's progress card in real time (no spam; the same card updates in place). */
-  const patchProgressInLastAssistant = (
+  const _patchProgressInLastAssistant = (
     updater: (prev: DeckProgressSnapshot) => DeckProgressSnapshot,
   ) => {
     setChat((prev) => {
@@ -711,7 +710,7 @@ export function AiPanel({
             }),
           )
       })
-    const runLlmOnce = async (
+    const _runLlmOnce = async (
       system: string,
       user: string,
       timeoutMs = IPC_STREAM_SILENCE_TIMEOUT_MS,
