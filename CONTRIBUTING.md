@@ -42,6 +42,13 @@ npm run dev          # all editors + shell against Vite dev servers
 npm run dev:docs     # or run a single app
 ```
 
+### Web edition (Next.js)
+
+```bash
+# Set a vendor key for live AI; default provider is Anthropic
+ANTHROPIC_API_KEY=sk-ant-… npm run dev -w @prismoffice/web   # localhost:3000
+```
+
 ## Checks every change must pass
 
 CI runs these on every PR; please run them locally first:
@@ -102,14 +109,15 @@ testing and local overrides:
 | `GENOFFICE_USER_DATA`                                    | Override the Electron userData directory (test isolation)              |
 | `GENOFFICE_LANG`                                         | Force the UI language instead of following the OS locale               |
 | `GENOFFICE_FAKE_UPDATE`                                  | Exercise the updater UI without a real release feed                    |
-| `GENOFFICE_CLOUD_SLIDE`, `GENOFFICE_CLOUD_SLIDE_TIER`    | Route slide generation through the cloud endpoint                      |
-| `GSK_API_KEY`, `GSK_CLI_PATH`                            | Genspark credentials / CLI location for the built-in AI provider       |
-| `AI_SEARCH_DISABLE_GSK`, `SERPER_API_KEY`                | Disable the gsk search backend / supply a Serper key instead           |
+| `ANTHROPIC_API_KEY`                                      | Anthropic API key (default AI provider for desktop + web)              |
+| `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `DEEPSEEK_API_KEY`   | Alternative vendor keys (selectable in settings)                       |
+| `SERPER_API_KEY`                                         | Supply a Serper key for web/image search                               |
 | `XLSX_SIDECAR_PATH`, `XLSX_OPEN_PATH`, `XLSX_DEBUG_PORT` | Point at a locally built xlsx sidecar and its debug port               |
 | `*_DEV_PORT`, `*_RENDERER_URL`                           | Per-app Vite dev server ports and renderer URLs (set by `npm run dev`) |
 
-AI features degrade rather than break without credentials: requests surface an
-inline sign-in prompt, and web search falls back to a keyless backend.
+AI features require a vendor API key (set in settings or via the env vars
+above). Without a key, AI requests return an error; web search falls back to
+the keyless DuckDuckGo backend.
 
 ## Coding conventions
 

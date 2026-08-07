@@ -52,8 +52,10 @@ Every app embeds the same AI panel: block-granular AI editing with version
 snapshots and diffs in docs, a tool-calling agent over workbook/slide/PDF
 state in the others.
 
-**AI providers.** The apps sign in to a Genspark account and route model
-calls through the Genspark service side; no model API key is stored locally.
+**AI providers.** The apps use the [Vercel AI SDK](https://sdk.vercel.ai) with
+direct vendor API keys (Anthropic, OpenAI, Google, DeepSeek, or any
+OpenAI-compatible endpoint). Keys are configured per-provider in settings; the
+default is Anthropic. No intermediate proxy or account is required.
 
 ## Engine packages
 
@@ -67,12 +69,33 @@ All pure TypeScript, no Electron dependency, unit-tested (except the UI kit):
   text formats).
 - `packages/agent-core` — the AI agent loop and skill composition shared by
   every app.
-- `packages/ai-provider` — provider abstraction and streaming for the model
-  backends.
-- `packages/ai-search` — Genspark auth + web/image search tools.
+- `packages/ai-provider` — multi-provider LLM streaming via the Vercel AI SDK
+  (Anthropic/OpenAI/Google/DeepSeek/custom), shared by every app and the web edition.
+- `packages/ai-search` — web/image search tools (Serper + DuckDuckGo fallback).
 - `packages/i18n`, `packages/ui`, `packages/project-store`,
   `packages/electron-utils` — shared i18n core, React UI kit, recent-files
   store, and Electron main-process helpers.
+
+## Web edition
+
+`apps/web` is a [Next.js](https://nextjs.org) webapp that runs PrismOffice
+editors in the browser. AI model calls are proxied server-side (vendor keys
+stay on the server); the agent loop runs client-side over HTTP/SSE.
+
+| Route | What |
+| --- | --- |
+| `/docs` | Full Tiptap `.docx` editor with byte-preserving round-trip + AI panel |
+| `/markdown` | Tiptap Markdown editor with `.md` load/save + AI panel |
+| `/agent-demo` | Tool-calling agent demo (proof of the web transport) |
+
+```bash
+npm run dev -w @prismoffice/web     # dev server at localhost:3000
+npm run build -w @prismoffice/web   # production build
+```
+
+Set `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`, `GOOGLE_API_KEY`,
+`DEEPSEEK_API_KEY`) for live AI. Without a key the editors still load/save
+files but AI features return an error.
 
 ## Development
 
@@ -83,13 +106,30 @@ npm test             # engine + app unit tests (docs/sheets/slides need no displ
 npm run typecheck    # tsc --noEmit across every workspace
 npm run dev          # all four editors + shell against Vite dev servers
 npm run dev:docs     # a single app (same pattern works per workspace)
-npm run dist:mac     # package macOS dmg (regenerates third-party notices)
 npm run dist:win     # package Windows nsis installer
 ```
 
 The sheets app additionally needs a Rust toolchain for its xlsx sidecar
 (`cargo` on PATH); `npm run build -w @prismoffice/sheets` compiles it
 automatically.
+
+### Web app
+
+```bash
+# Start the Next.js dev server (set a vendor key for live AI)
+ANTHROPIC_API_KEY=sk-ant-… npm run dev -w @prismoffice/web
+```
+
+### Building from source
+
+This is a development fork — prebuilt installers are not yet published here.
+To build desktop installers from source:
+
+```bash
+npm run dist:mac     # macOS dmg (needs macOS + Xcode tools)
+npm run dist:win     # Windows nsis (needs Windows + electron-builder)
+npm run dist:linux   # Linux deb/AppImage
+```
 
 Local UI/e2e driver scripts (Playwright + Electron, for local acceptance, not
 committed by default) live in [`scripts/drivers/`](scripts/drivers/README.md).
@@ -129,6 +169,5 @@ PrismOffice is licensed under the [Apache License 2.0](LICENSE), with one
 exception: the `ee/` directory is reserved for future enterprise modules and
 is covered by the [PrismOffice Enterprise License](ee/LICENSE).
 
-The PrismOffice and Genspark names and logos are trademarks of Mainfunc, Inc.
-The Apache-2.0 license does not grant permission to use them (see section 6);
-forks should use their own branding.
+The PrismOffice name and logo are trademarks of their respective owners.
+Forks should use their own branding (see the Apache-2.0 license, section 6).
