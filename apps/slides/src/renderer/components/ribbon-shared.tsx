@@ -10,14 +10,16 @@ import type {
   AnimationItem,
   EditChartOp,
   EditTableStyleOp,
+  GetLayoutsResult,
   InsertKind,
   TransitionKind,
 } from '../../shared/ipc'
 import type { InkPenSettings, InkTool } from '../ink'
-import type { ChartPresetDef, IconDef, SmartArtDef, WordArtPreset } from '../insert-presets'
+import type { WordArtPreset } from '@genoffice/ui'
+import type { ChartPresetDef, IconDef, SmartArtDef } from '../insert-presets'
 import type { SlideThemePreset } from '../themes'
 import type { ChartStyleInfo } from '@genoffice/pptx-render'
-import { useI18n } from '../i18n/locale'
+import { useI18n, type StringKey } from '../i18n/locale'
 
 export type InsertDropKey =
   'shapes' | 'icons' | 'chart' | 'smartart' | 'wordart' | 'zoom' | 'addanim'
@@ -115,6 +117,75 @@ export function RbCaret() {
   )
 }
 
+/** PowerPoint's canonical layout names → localized labels (the built-in set; unknown names show as-is) */
+const LAYOUT_NAME_KEYS: Record<string, StringKey> = {
+  'Title Slide': 'ribbonLayoutTitleSlide',
+  'Title and Content': 'ribbonLayoutTitleAndContent',
+  'Section Header': 'ribbonLayoutSectionHeader',
+  'Two Content': 'ribbonLayoutTwoContent',
+  'Title Only': 'ribbonLayoutTitleOnly',
+  Blank: 'ribbonLayoutBlank',
+}
+
+/** Layout candidates with placeholder-sketch previews (new-slide dropdown + layout picker) */
+export function LayoutList({
+  layouts,
+  size,
+  onPick,
+}: {
+  layouts: GetLayoutsResult['layouts'] | null
+  size: GetLayoutsResult['size'] | null
+  onPick: (path: string) => void
+}) {
+  const { t } = useI18n()
+  const W = 120
+  const H = 68 // preview box (px)
+  const cx = size?.cx || 9144000
+  const cy = size?.cy || 5143500
+  const list = layouts ?? []
+  return (
+    <div className="rb-layout-list">
+      {list.map((lay) => {
+        const key = LAYOUT_NAME_KEYS[lay.name]
+        const name = key ? t(key) : lay.name
+        return (
+          <button
+            key={lay.path}
+            className="rb-layout-item"
+            onClick={() => onPick(lay.path)}
+            title={name}
+          >
+            <div className="rb-layout-preview">
+              {lay.placeholders.map((ph, i) => (
+                <div
+                  key={i}
+                  className="rb-layout-ph"
+                  style={{
+                    left: Math.round((ph.x / cx) * W),
+                    top: Math.round((ph.y / cy) * H),
+                    width: Math.max(8, Math.round((ph.cx / cx) * W)),
+                    height: Math.max(6, Math.round((ph.cy / cy) * H)),
+                  }}
+                >
+                  <span>
+                    {ph.type === 'title' || ph.type === 'ctrTitle'
+                      ? 'T'
+                      : ph.type === 'body' || ph.type === 'obj'
+                        ? '≡'
+                        : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="rb-layout-name">{name}</div>
+          </button>
+        )
+      })}
+      {list.length === 0 && <div className="rb-layout-empty">{t('ribbonNoLayouts')}</div>}
+    </div>
+  )
+}
+
 /** Every ribbon popup that participates in "one popup at a time". */
 export type RibbonPanelKey =
   | 'file'
@@ -134,6 +205,7 @@ export type RibbonPanelKey =
   | 'chart'
   | 'collapse'
   | 'pen'
+  | 'slideShow'
 
 /** Ribbon popups are mutually exclusive: a trigger closes every sibling popup
  *  on mousedown, before its own click-toggle runs. A trigger rendered inside
@@ -228,6 +300,8 @@ export interface Props {
   onAiPreset: (text: string, opts?: { slideShot?: boolean }) => void
   /** Insert an element on the current page */
   onInsert: (kind: InsertKind) => void
+  /** Shape gallery pick: enter canvas draw mode (crosshair; click = default size, drag = custom, Esc cancels) */
+  onPickShape: (kind: InsertKind) => void
   /** Open the image picker dialog and insert into the current page */
   onInsertImage: () => void
   /** Set the page background solid color; allSlides=true applies to all pages */
@@ -241,20 +315,9 @@ export interface Props {
   /** Add a section (before the current page, modeled on PowerPoint Home tab "Section") */
   onAddSection: () => void
   /** The current pptx's layout list (null = not loaded) */
-  layouts: Array<{
-    path: string
-    name: string
-    layoutType: string
-    placeholders: Array<{
-      type: string
-      idx: string
-      x: number
-      y: number
-      cx: number
-      cy: number
-      hint: string
-    }>
-  }> | null
+  layouts: GetLayoutsResult['layouts'] | null
+  /** Slide size (EMU) for normalizing layout previews */
+  layoutSize: GetLayoutsResult['size'] | null
   formatOpen: boolean
   onToggleFormat: () => void
   hasSelection: boolean
@@ -281,6 +344,8 @@ export interface Props {
   curFontSizeMixed?: boolean
   /** Current bullet char of the selection for the bullet gallery ('' = no bullet; null = mixed/unknown, nothing highlighted) */
   curBulletChar: string | null
+  /** Current paragraph alignment of the selection ('left' when unset; null = mixed/no text, nothing highlighted) */
+  curAlign: 'left' | 'center' | 'right' | 'justify' | null
   /** Editing: change the selection's font / set size (pt) */
   onFontFamily: (family: string) => void
   onFontSize: (pt: number) => void
@@ -476,6 +541,7 @@ export interface RibbonTabCtx extends Pick<
   | 'canDistribute'
   | 'canPaste'
   | 'curBulletChar'
+  | 'curAlign'
   | 'curFontFamily'
   | 'curFontSizeMixed'
   | 'curFontSizePt'
@@ -488,6 +554,7 @@ export interface RibbonTabCtx extends Pick<
   | 'hasSelection'
   | 'hasTextSelection'
   | 'layouts'
+  | 'layoutSize'
   | 'onAddSection'
   | 'onAddSlide'
   | 'onAddSlideWithLayout'
@@ -505,6 +572,7 @@ export interface RibbonTabCtx extends Pick<
   | 'onFormatBrushClick'
   | 'onFormatBrushDoubleClick'
   | 'onInsert'
+  | 'onPickShape'
   | 'onInsertChart'
   | 'onInsertField'
   | 'onInsertIcon'
@@ -523,6 +591,7 @@ export interface RibbonTabCtx extends Pick<
   | 'onPaste'
   | 'onResetLayout'
   | 'onSetLayout'
+  | 'onSlideShow'
   | 'onStrike'
   | 'onTextColor'
   | 'onTextToggle'
@@ -575,11 +644,16 @@ export interface RibbonTabCtx extends Pick<
   setParaOpen: Dispatch<SetStateAction<boolean>>
   setSizeDraft: Dispatch<SetStateAction<string | null>>
   setSizeOpen: Dispatch<SetStateAction<boolean>>
+  setSlideShowFromStart: Dispatch<SetStateAction<boolean>>
+  setSlideShowOpen: Dispatch<SetStateAction<boolean>>
   setTableCustom: Dispatch<SetStateAction<{ r: number; c: number }>>
   setTableHover: Dispatch<SetStateAction<{ r: number; c: number }>>
   setTableOpen: Dispatch<SetStateAction<boolean>>
   sizeDraft: string | null
   sizeOpen: boolean
+  /** Home-tab split button memory: the last chosen start mode (true = from beginning) */
+  slideShowFromStart: boolean
+  slideShowOpen: boolean
   t: ReturnType<typeof useI18n>['t']
   tableCustom: { r: number; c: number }
   tableHover: { r: number; c: number }

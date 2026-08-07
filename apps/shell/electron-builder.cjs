@@ -23,10 +23,16 @@ const updateUrl = process.env.GENOFFICE_UPDATE_URL
 // nested commander path depends on npm's current hoisting layout — fail the
 // build with a clear message if an install ever changes it, instead of
 // shipping an installer with a broken gsk runtime.
+// LICENSES.chromium.html only exists after the Electron binary download —
+// since Electron 42 that no longer happens during `npm ci` (the postinstall
+// script was replaced by the lazy `install-electron` bin), and electron-builder
+// exits 0 on a missing extraResources source, so without this check the
+// installer would silently ship without the Chromium license.
 for (const rel of [
   '../../node_modules/@genspark/cli',
   '../../node_modules/@genspark/cli/node_modules/commander',
   '../../node_modules/ws',
+  '../../node_modules/electron/dist/LICENSES.chromium.html',
 ]) {
   if (!existsSync(join(__dirname, rel))) {
     throw new Error(
@@ -45,7 +51,13 @@ for (const rel of [
 // requires this config to read extraResources, and the dist:* scripts run
 // notices before build:all, when the out dirs legitimately don't exist yet.
 function assertModuleTreesPresent() {
-  for (const rel of ['../docs/out', '../sheets/out', '../slides/out', '../pdf/out']) {
+  for (const rel of [
+    '../docs/out',
+    '../sheets/out',
+    '../slides/out',
+    '../pdf/out',
+    '../markdown/out',
+  ]) {
     if (!existsSync(join(__dirname, rel))) {
       throw new Error(
         `electron-builder extraResources source missing: ${rel} (run npm run build:all first)`,
@@ -58,7 +70,10 @@ function assertModuleTreesPresent() {
 const config = {
   appId: 'com.genoffice.app',
   productName: 'GenOffice',
-  electronVersion: '41.7.1',
+  // Resolved from the installed electron package so dependency bumps can
+  // never leave a stale hard-coded pin behind (packaging would silently ship
+  // the old runtime).
+  electronVersion: require('electron/package.json').version,
   directories: {
     output: 'release',
   },
@@ -87,6 +102,10 @@ const config = {
     {
       from: '../pdf/out',
       to: 'modules/pdf',
+    },
+    {
+      from: '../markdown/out',
+      to: 'modules/markdown',
     },
     {
       from: '../../node_modules/@genspark/cli',
@@ -140,6 +159,18 @@ const config = {
       name: 'PDF Document',
       role: 'Editor',
       mimeType: 'application/pdf',
+    },
+    {
+      ext: 'md',
+      name: 'Markdown Document',
+      role: 'Editor',
+      mimeType: 'text/markdown',
+    },
+    {
+      ext: 'markdown',
+      name: 'Markdown Document',
+      role: 'Editor',
+      mimeType: 'text/markdown',
     },
   ],
   npmRebuild: false,

@@ -51,6 +51,7 @@ import { constrainTableWidthAtCell } from './table-sizing'
  */
 
 import {
+  CHART_MAX_WIDTH_PX,
   drawChartSvg,
   renderChartSpec,
   renderFieldSpec,
@@ -60,6 +61,7 @@ import {
   textboxBoxStyle,
   wireChartEditing,
 } from './protected-render'
+import { isStraightLineKind } from './shape-svg'
 import {
   BoldMark,
   CommentMark,
@@ -158,10 +160,15 @@ function blockAttrs(
   if (node.attrs.align) {
     styles.push(`text-align:${node.attrs.align === 'distribute' ? 'justify' : node.attrs.align}`)
   }
-  // the line-height factor follows paragraph content (approximating Word's max-of-inline-fonts line height):
-  // paragraphs containing CJK get 1.3, pure-Western ones 1.2; empty paragraphs inherit the document-level variable
+  // the line-height factor follows paragraph content (approximating Word's max-of-inline-fonts
+  // line height): CJK paragraphs get the CJK factor, pure-Western ones the document's
+  // font-aware Latin factor (doc-style-css sets --doc-line-factor-latin per body font)
   if (node.textContent) {
-    styles.push(`--doc-line-factor:${textHasCjk(node.textContent) ? 1.3 : 1.2}`)
+    styles.push(
+      `--doc-line-factor:${
+        textHasCjk(node.textContent) ? 1.3 : 'var(--doc-line-factor-latin,1.2)'
+      }`,
+    )
   }
   const lh = cssLineHeight(
     (node.attrs.lineRule as 'auto' | 'atLeast' | 'exact' | null) ?? undefined,
@@ -186,8 +193,11 @@ function blockAttrs(
     if (listGeometry && firstLine < 0) styles.push(`--li-hang:${-firstLine / 20}pt`)
     else styles.push(`text-indent:${firstLine / 20}pt`)
   }
-  if (node.attrs.spaceBefore) styles.push(`margin-top:${Number(node.attrs.spaceBefore) / 20}pt`)
-  if (node.attrs.spaceAfter) styles.push(`margin-bottom:${Number(node.attrs.spaceAfter) / 20}pt`)
+  // explicit 0 must still emit (w:after="0" overrides the style/docDefaults margin)
+  if (node.attrs.spaceBefore != null)
+    styles.push(`margin-top:${Number(node.attrs.spaceBefore) / 20}pt`)
+  if (node.attrs.spaceAfter != null)
+    styles.push(`margin-bottom:${Number(node.attrs.spaceAfter) / 20}pt`)
   if (node.attrs.shadingFill) styles.push(`background-color:#${node.attrs.shadingFill}`)
   if (node.attrs.borders) {
     const borders = String(node.attrs.borders)
@@ -595,7 +605,7 @@ function lineFactorDecos(doc: PmNode): DecorationSet {
       }
       decos.push(
         Decoration.node(pos, pos + node.nodeSize, {
-          style: `--doc-line-factor:${cjk ? 1.3 : 1.2}`,
+          style: `--doc-line-factor:${cjk ? 1.3 : 'var(--doc-line-factor-latin,1.2)'}`,
         }),
       )
     }
@@ -719,7 +729,7 @@ const tableCellAttrs = {
 }
 
 /** One OOXML border → CSS border value; 'none' means explicitly borderless */
-function borderLineCss(
+export function borderLineCss(
   b: { style: string; szEighths?: number; color?: string } | undefined | null,
 ): string | null {
   if (!b) return null
@@ -761,6 +771,10 @@ function tableCellHtml(node: PmNode): Record<string, string> {
       : node.attrs.textDirection === 'btLr'
         ? 'writing-mode:sideways-lr'
         : '',
+    // font-weight before background: jsdom's CSSOM drops the background getter
+    // when font-weight follows it (order is irrelevant to real browsers)
+    node.attrs.bold ? 'font-weight:600' : '',
+    node.attrs.color ? `color:#${node.attrs.color}` : '',
     node.attrs.fill ? `background:#${node.attrs.fill}` : '',
     node.attrs.align ? `text-align:${node.attrs.align}` : '',
     node.attrs.vAlign && node.attrs.vAlign !== 'top'
@@ -795,16 +809,16 @@ export type TableBordersAttr = Partial<
 >
 
 /**
- * Table-level w:tblBorders → outer frame on the table element + inner-line CSS variables
- * (td takes inner lines via --doc-b-h/--doc-b-v; border-collapse lets the outer frame win
- * on edge cells). Undeclared = keep the default grid lines.
+ * Table-level w:tblBorders → CSS variables consumed by edge/inside cell rules
+ * (--doc-b-t/r/b/l on edge cells beat the inside lines even when the frame is
+ * explicitly none). Undeclared = no borders, matching Word's printed output.
  */
 export function tableBordersCss(b: TableBordersAttr | null): string[] {
   if (!b) return []
   const styles: string[] = []
+  const edge = { top: 't', right: 'r', bottom: 'b', left: 'l' } as const
   for (const side of ['top', 'right', 'bottom', 'left'] as const) {
-    const v = borderLineCss(b[side])
-    if (v) styles.push(`border-${side}:${v}`)
+    styles.push(`--doc-b-${edge[side]}:${borderLineCss(b[side]) ?? 'none'}`)
   }
   styles.push(`--doc-b-h:${borderLineCss(b.insideH) ?? 'none'}`)
   styles.push(`--doc-b-v:${borderLineCss(b.insideV) ?? 'none'}`)
@@ -869,18 +883,18 @@ export const DocTable = Node.create({
     // A colgroup with normalized percentages defines the column grid whenever the
     // pct list matches the grid, so a table clamped to the content box compresses
     // its columns proportionally instead of overflowing via fixed td px widths.
-    let firstRowSpans = false
     let firstRowCols = 0
     node.firstChild?.forEach((cell) => {
-      const span = Number(cell.attrs.colspan) || 1
-      if (span > 1) firstRowSpans = true
-      firstRowCols += span
+      firstRowCols += Number(cell.attrs.colspan) || 1
     })
-    const pct = node.attrs.colWidthsPct as number[] | null
-    if (
-      pct?.length &&
-      (firstRowSpans || (pct.length === firstRowCols && pct.every((w) => w > 0)))
-    ) {
+    const rawPct = node.attrs.colWidthsPct as number[] | null
+    if (rawPct?.length) {
+      // zero-width grid slots get a small floor, short grids pad with the average —
+      // dropping the whole colgroup falls back to fixed-layout even splitting, which
+      // is always worse than an approximate grid
+      const pct = rawPct.map((w) => (w > 0 ? w : 0.5))
+      const avg = pct.reduce((sum, w) => sum + w, 0) / pct.length
+      while (pct.length < firstRowCols) pct.push(avg)
       const total = pct.reduce((sum, w) => sum + w, 0) || 100
       return [
         'table',
@@ -1275,6 +1289,17 @@ export const DocProtected = Node.create({
           // Let ProseMirror plugins receive handle presses; floating-object
           // dragging is implemented at the editor-view level.
           if (target?.closest?.('.doc-move-handle')) return false
+          // Shape bodies (prst textboxes) drag-to-move on a plain press (Word
+          // parity); a double-click still reaches the inner editor for the caret
+          if (
+            event.type === 'mousedown' &&
+            (event as MouseEvent).detail < 2 &&
+            target?.closest?.('.doc-textbox') &&
+            !dom.classList.contains('doc-content-editing') &&
+            (currentNode.attrs.textboxes as TextboxDisplay[] | null)?.[0]?.prst
+          ) {
+            return false
+          }
           const contentTarget = target?.closest?.(EDITABLE_PROTECTED_SELECTOR)
           return (
             !!contentTarget &&
@@ -1323,12 +1348,12 @@ function protectedDomSpec(node: PmNode): DomSpec {
         `transform:translate(${Number(offsetX ?? 0) / EMU_PER_PX}px,` +
         `${Number(offsetY ?? 0) / EMU_PER_PX}px)`
     }
-    return [
-      'div',
-      attrs,
-      moveHandleSpec(t('editorMoveTextbox')),
-      ...(textboxes as TextboxDisplay[]).map(renderTextboxSpec),
-    ]
+    const children: DomSpec[] = (textboxes as TextboxDisplay[]).map(renderTextboxSpec)
+    // corner resize handle; multi-box nodes keep per-box autogrow semantics only
+    if ((textboxes as TextboxDisplay[]).length === 1) {
+      children.push(['span', { class: 'box-resize-handle', contenteditable: 'false' }])
+    }
+    return ['div', attrs, moveHandleSpec(t('editorMoveTextbox')), ...children]
   }
   // empty section-break paragraphs (page-per-section converter output): Word
   // shows nothing here, so render a near-invisible strip (hover reveals it)
@@ -1406,6 +1431,7 @@ function protectedDomSpec(node: PmNode): DomSpec {
       attrs,
       moveHandleSpec(t('editorMoveChart')),
       renderChartSpec(chartDisplay as ChartDisplay),
+      ['span', { class: 'box-resize-handle', contenteditable: 'false' }],
     ]
   }
   // OLE embed with a packaged preview picture: show the picture with a
@@ -1937,6 +1963,9 @@ function mountTextboxEditors(
       if (sub && !sub.isDestroyed) sub.commands.setContent(textboxDocJson(box))
       const el = boxEls[i]
       if (el) el.setAttribute('style', textboxBoxStyle(box))
+      // corner resize only rewrites the attrs; without refreshing the minimum
+      // the next autofit would shrink the box back below the resized height
+      minHeights[i] = box.minHeightPx ?? box.heightPx
       measuredHeights[i] = box.heightPx
     })
   }
@@ -1968,6 +1997,98 @@ function imageResizePlugin(): Plugin {
       handleDOMEvents: {
         mousedown: (view, event) => {
           const target = event.target as HTMLElement
+          if (target.classList?.contains('box-resize-handle')) {
+            const boxWrapper = target.closest('.doc-protected') as HTMLElement | null
+            const isChart = !!boxWrapper?.classList.contains('doc-protected-chart')
+            const boxEl = boxWrapper?.querySelector(
+              isChart ? '.doc-chart-canvas svg' : '.doc-textbox',
+            ) as HTMLElement | null
+            if (!boxWrapper || !boxEl) return false
+            let boxPos = -1
+            view.state.doc.descendants((node, p) => {
+              if (boxPos !== -1) return false
+              if (node.type.name === 'docProtected' && view.nodeDOM(p) === boxWrapper) boxPos = p
+              return boxPos === -1
+            })
+            if (boxPos === -1) return false
+            const attrs = view.state.doc.nodeAt(boxPos)?.attrs
+            const boxes = attrs?.textboxes as TextboxDisplay[] | null
+            const chart = attrs?.chartDisplay as ChartDisplay | null
+            if (!isChart && (!Array.isArray(boxes) || boxes.length !== 1)) return false
+            if (isChart && !chart) return false
+            event.preventDefault()
+            view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, boxPos)))
+
+            const zoomEl = document.querySelector('.doc-zoom') as HTMLElement | null
+            const zoom = zoomEl ? parseFloat(getComputedStyle(zoomEl).zoom || '1') || 1 : 1
+            const startRect = boxEl.getBoundingClientRect()
+            const startW = isChart
+              ? startRect.width / zoom
+              : parseFloat(getComputedStyle(boxEl).width) || boxes![0].widthPx || 189
+            const startH = isChart
+              ? startRect.height / zoom
+              : parseFloat(getComputedStyle(boxEl).height) || boxes![0].heightPx || 113
+            const startX = event.clientX
+            const startY = event.clientY
+
+            // horizontal lines resize in length only (their saved extent is zero-height)
+            const lockH = !isChart && isStraightLineKind(boxes![0].prst)
+            const minW = isChart ? 120 : 24
+            const minH = isChart ? 80 : 8
+            // charts never draw wider than the render cap, so don't let the model exceed it
+            const maxW = isChart ? CHART_MAX_WIDTH_PX : Infinity
+            const sizeAt = (e: MouseEvent) => ({
+              w: Math.min(maxW, Math.max(minW, startW + (e.clientX - startX) / zoom)),
+              h: lockH ? startH : Math.max(minH, startH + (e.clientY - startY) / zoom),
+            })
+            const onMove = (e: MouseEvent) => {
+              const { w, h } = sizeAt(e)
+              boxEl.style.width = `${w}px`
+              boxEl.style.height = `${h}px`
+            }
+            const onUp = (e: MouseEvent) => {
+              window.removeEventListener('mousemove', onMove)
+              window.removeEventListener('mouseup', onUp)
+              const { w, h } = sizeAt(e)
+              const node = view.state.doc.nodeAt(boxPos)
+              if (!node) return
+              if (isChart) {
+                const display = node.attrs.chartDisplay as ChartDisplay | null
+                if (!display) return
+                view.dispatch(
+                  view.state.tr.setNodeMarkup(boxPos, undefined, {
+                    ...node.attrs,
+                    chartDisplay: {
+                      ...display,
+                      widthPx: Math.round(w),
+                      heightPx: Math.round(h),
+                    },
+                  }),
+                )
+                return
+              }
+              const box = (node.attrs.textboxes as TextboxDisplay[] | null)?.[0]
+              if (!box) return
+              // straight lines keep their zero-height extent: never give them a heightPx
+              const next = lockH
+                ? { ...box, widthPx: Math.round(w) }
+                : {
+                    ...box,
+                    widthPx: Math.round(w),
+                    heightPx: Math.round(h),
+                    minHeightPx: Math.round(h),
+                  }
+              view.dispatch(
+                view.state.tr.setNodeMarkup(boxPos, undefined, {
+                  ...node.attrs,
+                  textboxes: [next],
+                }),
+              )
+            }
+            window.addEventListener('mousemove', onMove)
+            window.addEventListener('mouseup', onUp)
+            return true
+          }
           if (!target.classList?.contains('img-resize-handle')) return false
           const wrapper = target.closest('.doc-protected') as HTMLElement | null
           const img = wrapper?.querySelector('img.doc-protected-img') as HTMLImageElement | null
@@ -2037,10 +2158,13 @@ function floatingObjectDragPlugin(): Plugin {
           if (event.button !== 0) return false
           const target = event.target as HTMLElement | null
           if (!target) return false
-          // Only activate on the move handle of an image block
+          // Activate on the move handle of an image block, or (Word parity)
+          // anywhere on a textbox/shape body — its text isn't edited in place,
+          // so the body gesture is unambiguous
           const handle = target.closest('.doc-move-handle') as HTMLElement | null
-          if (!handle) return false
-          const wrapper = handle.closest('.doc-protected') as HTMLElement | null
+          const body = handle ? null : (target.closest('.doc-textbox') as HTMLElement | null)
+          if (!handle && !body) return false
+          const wrapper = (handle ?? body)!.closest('.doc-protected') as HTMLElement | null
           if (!wrapper) return false
 
           // Find the ProseMirror node position
@@ -2056,6 +2180,10 @@ function floatingObjectDragPlugin(): Plugin {
           const isImage = node.attrs.blockType === 'image'
           const isTextbox = Array.isArray(node.attrs.textboxes) && node.attrs.textboxes.length > 0
           if (!isImage && !isTextbox) return false
+          // Body activation is for prst shapes only: plain text boxes keep
+          // click-to-type, images keep their native behavior
+          const isShapeBody = isTextbox && !!(node.attrs.textboxes as TextboxDisplay[])[0]?.prst
+          if (!handle && !isShapeBody) return false
 
           const isFloating = !!node.attrs.imageWrap
           const hasNumericOffset =
@@ -2081,9 +2209,14 @@ function floatingObjectDragPlugin(): Plugin {
             isTextbox ? '.doc-textbox' : '.doc-protected-img',
           ) as HTMLElement | null
 
+          // 3px threshold keeps plain clicks (select, first click of a
+          // double-click-to-edit) from nudging the object
+          let dragging = false
           const onMove = (e: MouseEvent) => {
             const dx = (e.clientX - startX) / zoom
             const dy = (e.clientY - startY) / zoom
+            if (!dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return
+            dragging = true
             if (visual) visual.style.transform = `translate(${dx}px, ${dy}px)`
           }
 
@@ -2094,8 +2227,8 @@ function floatingObjectDragPlugin(): Plugin {
 
             const dx = (e.clientX - startX) / zoom
             const dy = (e.clientY - startY) / zoom
-            // Only update if actually moved (≥1 px)
-            if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
+            // Only commit a real drag (past the threshold)
+            if (!dragging) return
 
             const newX = Math.round(startOffsetX + dx * EMU_PER_PX)
             const newY = Math.round(startOffsetY + dy * EMU_PER_PX)
@@ -2186,8 +2319,8 @@ const TextboxParagraph = Node.create({
       node.attrs.indentLeft ? `margin-left:${Number(node.attrs.indentLeft) / 20}pt` : '',
       node.attrs.indentRight ? `margin-right:${Number(node.attrs.indentRight) / 20}pt` : '',
       node.attrs.indentFirstLine ? `text-indent:${Number(node.attrs.indentFirstLine) / 20}pt` : '',
-      node.attrs.spaceBefore ? `margin-top:${Number(node.attrs.spaceBefore) / 20}pt` : '',
-      node.attrs.spaceAfter ? `margin-bottom:${Number(node.attrs.spaceAfter) / 20}pt` : '',
+      node.attrs.spaceBefore != null ? `margin-top:${Number(node.attrs.spaceBefore) / 20}pt` : '',
+      node.attrs.spaceAfter != null ? `margin-bottom:${Number(node.attrs.spaceAfter) / 20}pt` : '',
       node.attrs.shadingFill ? `background-color:#${node.attrs.shadingFill}` : '',
     ]
       .filter(Boolean)

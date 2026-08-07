@@ -38,13 +38,12 @@ import {
   IconPrintLayout,
   IconReadMode,
   IconRecord,
+  IconRemoveBg,
   IconRedo,
   IconRehearse,
   IconSave,
   IconSetupShow,
   IconSparkle,
-  IconSpellcheck,
-  IconTranslate,
   IconUndo,
   IconWholePage,
   IconZoom100,
@@ -76,6 +75,9 @@ import {
   IconPathCircle,
   IconPathZigzag,
 } from './icons'
+// brand-supplied Review AI icon art (44px = 22px @2x), color baked in
+import iconSpelling from '../assets/icon-spelling.png'
+import iconTranslate from '../assets/icon-translate.png'
 import { ChartTypeDialog } from './ChartTypeDialog'
 import {
   BIG,
@@ -740,6 +742,7 @@ export function Ribbon({
   onToggleAi,
   onAiPreset,
   onInsert,
+  onPickShape,
   onInsertImage,
   onBackground,
   onApplyTheme,
@@ -747,6 +750,7 @@ export function Ribbon({
   onAddSlideWithLayout,
   onAddSection,
   layouts,
+  layoutSize,
   formatOpen,
   onToggleFormat,
   hasSelection,
@@ -761,6 +765,7 @@ export function Ribbon({
   onFormatBrushDoubleClick,
   onTextColor,
   curBulletChar,
+  curAlign,
   curFontFamily,
   curFontSizePt,
   curFontSizeMixed,
@@ -896,6 +901,8 @@ export function Ribbon({
   const [collapseOpen, setCollapseOpen] = useState<string | null>(null)
   const [translateOpen, setTranslateOpen] = useState(false)
   const [arrangeOpen, setArrangeOpen] = useState(false)
+  const [slideShowOpen, setSlideShowOpen] = useState(false)
+  const [slideShowFromStart, setSlideShowFromStart] = useState(false)
   // Insert tab dropdown galleries (at most one open at a time)
   const [insertDrop, setInsertDrop] = useState<
     'shapes' | 'icons' | 'chart' | 'smartart' | 'wordart' | 'zoom' | 'addanim' | null
@@ -936,6 +943,7 @@ export function Ribbon({
     if (!keep.includes('chart')) setChartDrop(null)
     if (!keep.includes('collapse')) setCollapseOpen(null)
     if (!keep.includes('pen')) setPenFlyout(null)
+    if (!keep.includes('slideShow')) setSlideShowOpen(false)
   }, [])
 
   // Clicking elsewhere collapses the table picker (the font color palette uses onMouseDown without stealing focus, collapsing naturally when the edit commits)
@@ -950,6 +958,7 @@ export function Ribbon({
       !layoutOpen &&
       !chartDrop &&
       !arrangeOpen &&
+      !slideShowOpen &&
       !paraOpen
     )
       return
@@ -963,6 +972,7 @@ export function Ribbon({
       setLayoutOpen(false)
       setChartDrop(null)
       setArrangeOpen(false)
+      setSlideShowOpen(false)
       setParaOpen(false)
       setCollapseOpen(null)
     }
@@ -978,6 +988,7 @@ export function Ribbon({
     layoutOpen,
     chartDrop,
     arrangeOpen,
+    slideShowOpen,
     paraOpen,
     collapseOpen,
   ])
@@ -1185,6 +1196,7 @@ export function Ribbon({
     canPaste,
     closePanels,
     curBulletChar,
+    curAlign,
     curFontFamily,
     curFontSizeMixed,
     curFontSizePt,
@@ -1197,6 +1209,7 @@ export function Ribbon({
     hasSelection,
     hasTextSelection,
     layouts,
+    layoutSize,
     onAddSection,
     onAddSlide,
     onAddSlideWithLayout,
@@ -1214,6 +1227,7 @@ export function Ribbon({
     onFormatBrushClick,
     onFormatBrushDoubleClick,
     onInsert,
+    onPickShape,
     onInsertChart,
     onInsertField,
     onInsertIcon,
@@ -1232,6 +1246,7 @@ export function Ribbon({
     onPaste,
     onResetLayout,
     onSetLayout,
+    onSlideShow,
     onStrike,
     onTextColor,
     onTextToggle,
@@ -1275,11 +1290,15 @@ export function Ribbon({
     setParaOpen,
     setSizeDraft,
     setSizeOpen,
+    setSlideShowFromStart,
+    setSlideShowOpen,
     setTableCustom,
     setTableHover,
     setTableOpen,
     sizeDraft,
     sizeOpen,
+    slideShowFromStart,
+    slideShowOpen,
     t,
     tableCustom,
     tableHover,
@@ -1441,7 +1460,10 @@ export function Ribbon({
             // Clicking a pen picks it up; clicking the held pen opens its
             // color/width flyout; customisations stick to that pen preset.
             const applyPenPreset = (preset: PenPreset) => {
-              onInkTool(preset.kind)
+              // onInkTool toggles back to 'select' when the active tool is re-picked;
+              // only switch when it actually differs so editing color/width (or swapping
+              // to another pen of the same kind) never drops the pen
+              if (inkTool !== preset.kind) onInkTool(preset.kind)
               if (preset.kind === 'pen')
                 onInkPen({ ...inkPen, color: preset.color, width: preset.width })
               else onInkHighlighter({ ...inkHighlighter, color: preset.color, width: preset.width })
@@ -1453,6 +1475,49 @@ export function Ribbon({
               const next = penPresets.map((p, i) => (i === index ? { ...p, ...patch } : p))
               setPenPresets(next)
               applyPenPreset(next[index])
+            }
+            // Color swatches + width dots editing one pen preset (same controls as
+            // apps/docs DrawTab); shown inline for the selected pen and reused by the
+            // held-pen flyout
+            const renderInkSettings = (index: number) => {
+              const preset = penPresets[index]!
+              const widths = preset.kind === 'highlighter' ? HIGHLIGHTER_WIDTHS : PEN_WIDTHS
+              return (
+                <div className="ink-settings">
+                  <div className="ink-swatches">
+                    {INK_COLORS.map((hex) => (
+                      <button
+                        key={hex}
+                        className={`ink-swatch ${preset.color === hex ? 'active' : ''}`}
+                        style={{ background: `#${hex}` }}
+                        title={`#${hex}`}
+                        disabled={!hasDoc}
+                        onClick={() => updatePenPreset(index, { color: hex })}
+                      />
+                    ))}
+                  </div>
+                  <div className="ink-widths">
+                    {widths.map((w) => (
+                      <button
+                        key={w}
+                        className={`ink-width ${preset.width === w ? 'active' : ''}`}
+                        title={t('ribbonInkWidthTip', { w })}
+                        disabled={!hasDoc}
+                        onClick={() => updatePenPreset(index, { width: w })}
+                      >
+                        <span
+                          className="ink-width-dot"
+                          style={{
+                            width: Math.min(16, w * 2 + 2),
+                            height: Math.min(16, w * 2 + 2),
+                            background: `#${preset.color}`,
+                          }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
             }
             return (
               <>
@@ -1523,6 +1588,7 @@ export function Ribbon({
                       )
                     })}
                   </div>
+                  {renderInkSettings(selectedPen)}
                 </Group>
                 <div className="ribbon-sep" />
                 <Group label={t('ribbonGroupClear')}>
@@ -1538,48 +1604,14 @@ export function Ribbon({
                     <span>{t('ribbonEraseAll')}</span>
                   </button>
                 </Group>
-                {penFlyout &&
-                  (() => {
-                    const preset = penPresets[penFlyout.index]
-                    const widths = preset.kind === 'highlighter' ? HIGHLIGHTER_WIDTHS : PEN_WIDTHS
-                    return (
-                      <>
-                        <div className="pen-flyout-backdrop" onClick={() => setPenFlyout(null)} />
-                        <div className="pen-flyout" style={{ left: penFlyout.x, top: penFlyout.y }}>
-                          <div className="ink-swatches">
-                            {INK_COLORS.map((hex) => (
-                              <button
-                                key={hex}
-                                className={`ink-swatch ${preset.color === hex ? 'active' : ''}`}
-                                style={{ background: `#${hex}` }}
-                                title={`#${hex}`}
-                                onClick={() => updatePenPreset(penFlyout.index, { color: hex })}
-                              />
-                            ))}
-                          </div>
-                          <div className="ink-widths">
-                            {widths.map((w) => (
-                              <button
-                                key={w}
-                                className={`ink-width ${preset.width === w ? 'active' : ''}`}
-                                title={t('ribbonInkWidthTip', { w })}
-                                onClick={() => updatePenPreset(penFlyout.index, { width: w })}
-                              >
-                                <span
-                                  className="ink-width-dot"
-                                  style={{
-                                    width: Math.min(16, w * 2 + 2),
-                                    height: Math.min(16, w * 2 + 2),
-                                    background: `#${preset.color}`,
-                                  }}
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )
-                  })()}
+                {penFlyout && (
+                  <>
+                    <div className="pen-flyout-backdrop" onClick={() => setPenFlyout(null)} />
+                    <div className="pen-flyout" style={{ left: penFlyout.x, top: penFlyout.y }}>
+                      {renderInkSettings(penFlyout.index)}
+                    </div>
+                  </>
+                )}
               </>
             )
           })()
@@ -2049,10 +2081,9 @@ export function Ribbon({
                   if (confirmAiRewrite()) onAiPreset(t('ribbonSpellCheckPrompt'))
                 }}
               >
-                <span className="rb-big-icon rb-ai-icon">
-                  <IconSpellcheck size={BIG} />
-                  <span className="copilot-badge copilot-badge-mini">
-                    <IconSparkle size={8} />
+                <span className="rb-big-icon">
+                  <span className="ai-feature-icon" aria-hidden="true">
+                    <img src={iconSpelling} width={22} height={22} alt="" />
                   </span>
                 </span>
                 <span>{t('ribbonSpellCheck')}</span>
@@ -2068,10 +2099,9 @@ export function Ribbon({
                   }}
                   onClick={() => setTranslateOpen((v) => !v)}
                 >
-                  <span className="rb-big-icon rb-ai-icon">
-                    <IconTranslate size={BIG} />
-                    <span className="copilot-badge copilot-badge-mini">
-                      <IconSparkle size={8} />
+                  <span className="rb-big-icon">
+                    <span className="ai-feature-icon" aria-hidden="true">
+                      <img src={iconTranslate} width={22} height={22} alt="" />
                     </span>
                     <RbCaret />
                   </span>
@@ -2627,8 +2657,8 @@ export function Ribbon({
                 disabled={!onPictureCutout || !contextPictureCanCutout}
                 onClick={onPictureCutout}
               >
-                <span className="rb-big-icon" style={{ fontSize: 20 }}>
-                  🪄
+                <span className="rb-big-icon">
+                  <IconRemoveBg size={BIG + 2} />
                 </span>
                 <span>{t('ribbonRemoveBg')}</span>
               </button>

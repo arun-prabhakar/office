@@ -1,13 +1,14 @@
 /** Insert tab of the slides ribbon. Extracted from Ribbon.tsx. */
 import type { InsertKind } from '../../shared/ipc'
+import { WORDART_PRESETS, wordArtStrokePx } from '@genoffice/ui'
 import {
   CHART_GALLERY,
   ICON_COLORS,
   ICON_GALLERY,
   SHAPE_GALLERY,
   SMARTART_GALLERY,
-  WORDART_PRESETS,
 } from '../insert-presets'
+import type { StringKey } from '../i18n/locale'
 import { ChartKindThumb } from './ChartTypeDialog'
 import { ShapePreview, SmartArtPreview } from './gallery-previews'
 import {
@@ -33,7 +34,14 @@ import {
   IconZoomJump,
 } from './icons'
 import { saveEditSelection } from '../TextEditOverlay'
-import { BIG, Group, RbCaret, closeSiblingPanels, type RibbonTabCtx } from './ribbon-shared'
+import {
+  BIG,
+  Group,
+  LayoutList,
+  RbCaret,
+  closeSiblingPanels,
+  type RibbonTabCtx,
+} from './ribbon-shared'
 
 export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
   const {
@@ -43,9 +51,11 @@ export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
     hasDoc,
     hasSelection,
     layouts,
+    layoutSize,
     onAddSlide,
     onAddSlideWithLayout,
     onInsert,
+    onPickShape,
     onInsertChart,
     onInsertField,
     onInsertIcon,
@@ -91,7 +101,7 @@ export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
               <IconNewSlide size={BIG} />
               <span
                 className={`rb-caret-hit${layoutOpen ? ' active' : ''}`}
-                title={t('ribbonChooseLayout')}
+                title={t('ribbonChooseLayoutNew')}
                 onMouseDown={(e) => {
                   e.stopPropagation()
                   closeSiblingPanels(e, closePanels, 'layout')
@@ -108,52 +118,15 @@ export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
           </button>
           {layoutOpen && (
             <div className="rb-drop rb-layout-panel" onMouseDown={(e) => e.stopPropagation()}>
-              <div className="rb-drop-title">{t('ribbonChooseLayout')}</div>
-              <div className="rb-layout-list">
-                {(layouts ?? []).map((lay) => (
-                  <button
-                    key={lay.path}
-                    className="rb-layout-item"
-                    onClick={() => {
-                      setLayoutOpen(false)
-                      onAddSlideWithLayout(lay.path)
-                    }}
-                    title={lay.name}
-                  >
-                    <div className="rb-layout-preview">
-                      {lay.placeholders.map((ph, i) => {
-                        const S = 120,
-                          H = 68
-                        const EMU = 9144000
-                        const EMU_H = 5143500
-                        const x = Math.round((ph.x / EMU) * S)
-                        const y = Math.round((ph.y / EMU_H) * H)
-                        const w = Math.max(8, Math.round((ph.cx / EMU) * S))
-                        const h = Math.max(6, Math.round((ph.cy / EMU_H) * H))
-                        return (
-                          <div
-                            key={i}
-                            className="rb-layout-ph"
-                            style={{ left: x, top: y, width: w, height: h }}
-                          >
-                            <span>
-                              {ph.type === 'title' || ph.type === 'ctrTitle'
-                                ? 'T'
-                                : ph.type === 'body' || ph.type === 'obj'
-                                  ? '≡'
-                                  : ''}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="rb-layout-name">{lay.name}</div>
-                  </button>
-                ))}
-                {(layouts ?? []).length === 0 && (
-                  <div className="rb-layout-empty">{t('ribbonNoLayouts')}</div>
-                )}
-              </div>
+              <div className="rb-drop-title">{t('ribbonChooseLayoutNew')}</div>
+              <LayoutList
+                layouts={layouts}
+                size={layoutSize}
+                onPick={(path) => {
+                  setLayoutOpen(false)
+                  onAddSlideWithLayout(path)
+                }}
+              />
             </div>
           )}
         </div>
@@ -326,7 +299,7 @@ export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
                       title={s.label}
                       onClick={() => {
                         setInsertDrop(null)
-                        onInsert(s.prst as InsertKind)
+                        onPickShape(s.prst as InsertKind)
                       }}
                     >
                       <ShapePreview prst={s.prst} size={18} />
@@ -462,10 +435,12 @@ export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
               <button
                 key={p.id}
                 className="rb-wordart-cell"
-                title={t('ribbonWordArtCellTip')}
+                title={t(p.nameKey as StringKey)}
                 style={{
                   color: p.fill,
-                  WebkitTextStroke: p.outline ? `1px ${p.outline.color}` : undefined,
+                  WebkitTextStroke: p.outline
+                    ? `${wordArtStrokePx(p.outline.widthEmu)}px ${p.outline.color}`
+                    : undefined,
                   fontWeight: p.bold ? 800 : 400,
                   fontStyle: p.italic ? 'italic' : undefined,
                 }}
@@ -474,7 +449,7 @@ export function RibbonInsertTab({ rb }: { rb: RibbonTabCtx }) {
                   onInsertWordArt(p)
                 }}
               >
-                A
+                {t('ribbonWordArtPreviewChar')}
               </button>
             ))}
           </div>,

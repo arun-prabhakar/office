@@ -12,6 +12,8 @@ import type {
   AttachmentMeta,
   AttachmentReadResult,
   DesktopApi,
+  ScreenCaptureResult,
+  ScreenSourcesResult,
   WorkbookCellStyle,
   WorkbookConditionalRule,
   WorkbookFile,
@@ -96,6 +98,37 @@ const desktopApi: DesktopApi = {
       throw new Error('Invalid local image response.')
     }
     return result as { mediaType: 'image/png' | 'image/jpeg' | 'image/gif'; base64: string }
+  },
+  async captureScreenSources() {
+    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.captureScreenSources)
+    if (
+      !isRecord(result) ||
+      (result.status !== 'ok' && result.status !== 'denied') ||
+      !Array.isArray(result.sources)
+    ) {
+      throw new Error('Invalid screen sources response.')
+    }
+    return result as ScreenSourcesResult
+  },
+  async captureScreenSource(request) {
+    if (!isRecord(request) || typeof request.id !== 'string' || request.id.length === 0) {
+      throw new Error('Invalid screen capture request.')
+    }
+    const result: unknown = await ipcRenderer.invoke(IPC_CHANNELS.captureScreenSource, {
+      id: request.id,
+    })
+    if (result === null) return null
+    if (
+      !isRecord(result) ||
+      result.mediaType !== 'image/png' ||
+      typeof result.base64 !== 'string' ||
+      result.base64.length === 0 ||
+      typeof result.width !== 'number' ||
+      typeof result.height !== 'number'
+    ) {
+      throw new Error('Invalid screen capture response.')
+    }
+    return result as ScreenCaptureResult
   },
   async readPivotDefinition(request) {
     const validatedRequest = parsePivotRequest(request)
@@ -256,6 +289,10 @@ const desktopApi: DesktopApi = {
   },
   async consumeNewBlankWorkbook() {
     const result: unknown = await ipcRenderer.invoke('sheets:consume-new-blank')
+    return result === true
+  },
+  async hasQueuedWorkbook() {
+    const result: unknown = await ipcRenderer.invoke('sheets:has-queued-workbook')
     return result === true
   },
   async pickAttachments() {
@@ -1337,6 +1374,20 @@ function parseSaveRequest(input: WorkbookSaveRequest): WorkbookSaveRequest {
       continue
     }
     const { index, count } = op
+    if ('before' in op) {
+      if (
+        op.kind !== 'move-rows' ||
+        !isNonnegativeInteger(index) ||
+        !isNonnegativeInteger(count) ||
+        count === 0 ||
+        count > 10_000 ||
+        !isNonnegativeInteger(op.before) ||
+        (op.before >= index && op.before <= index + count)
+      ) {
+        throw new Error('Invalid workbook structural operation.')
+      }
+      continue
+    }
     if (
       !['insert-rows', 'remove-rows', 'insert-cols', 'remove-cols'].includes(String(op.kind)) ||
       !isNonnegativeInteger(index) ||

@@ -27,8 +27,11 @@ export interface Run {
   color?: string
   /** font size in half-points (OOXML w:sz) */
   sizeHalfPoints?: number
-  /** font family name (w:rFonts, eastAsia/ascii) */
+  /** primary font family (w:rFonts, eastAsia ?? ascii ?? hAnsi) */
   font?: string
+  /** Latin-slot font (w:rFonts ascii/hAnsi) when the run declares one; may equal `font`.
+   * Kept separate so editing one script's font never flattens the other slot. */
+  fontAscii?: string
   /** Character spacing (w:spacing, twips, may be negative). Display only; saving is kept faithful by rawRPr */
   charSpacingTwips?: number
   /** Horizontal character scale percent (w:w). Display only (approximated as spacing); saving is kept faithful by rawRPr */
@@ -85,6 +88,7 @@ export interface Run {
       color?: string
       sizeHalfPoints?: number
       font?: string
+      fontAscii?: string
       charSpacingTwips?: number
       charScalePct?: number
       highlight?: string
@@ -422,6 +426,9 @@ export interface ChartDisplay {
   title?: string
   categories: string[]
   series: ChartSeries[]
+  /** display size (from wp:extent), editable via the corner resize handle */
+  widthPx?: number
+  heightPx?: number
 }
 
 /** A new chart to embed at save time (becomes word/charts/chartN.xml + relationship). */
@@ -809,6 +816,8 @@ export interface StyleDisplay {
   underline?: boolean
   strike?: boolean
   font?: string
+  /** latin-slot font when it differs from the east-asian one (w:ascii/w:hAnsi) */
+  fontAscii?: string
   /** character spacing (rPr w:spacing, twips, may be negative) */
   charSpacingTwips?: number
   /** multiple of single line spacing (w:spacing w:line, lineRule auto) */
@@ -829,6 +838,8 @@ export interface StyleDisplay {
   keepLines?: boolean
   /** F1: contextualSpacing from style definition */
   contextualSpacing?: boolean
+  /** paragraph alignment from the style (w:pPr w:jc) */
+  align?: 'left' | 'center' | 'right' | 'justify'
 }
 
 /** display-only formatting a table style contributes (fills applied per tblLook flags) */
@@ -845,6 +856,15 @@ export interface TableStyleDisplay {
   borders?: TableBorders
   /** style-level cell margins (w:tblPr w:tblCellMar) */
   cellMarTwips?: CellMargins
+  /** style-level w:pPr spacing applied to every cell paragraph (TableGrid carries
+   * after=0/line=240 — the reason Word tables are tight while body text is loose) */
+  paraSpacing?: {
+    beforeTwips?: number
+    afterTwips?: number
+    lineRawTwips?: number
+    lineRule?: 'auto' | 'atLeast' | 'exact'
+    lineSpacing?: number
+  }
 }
 
 export interface StyleInfo {
@@ -862,6 +882,10 @@ export interface StyleInfo {
   display?: StyleDisplay
   /** table-style rendering hints (type === 'table') */
   tableDisplay?: TableStyleDisplay
+  /** w:pPr/w:numPr on the style — list numbering referenced via pStyle (ListBullet/ListNumber) */
+  numPr?: { numId: string; ilvl: number }
+  /** w:default="1" — Word applies this style to every paragraph without a w:pStyle */
+  isDefault?: boolean
 }
 
 /** document-wide defaults from styles.xml w:docDefaults (display-only) */
@@ -925,8 +949,13 @@ export interface ThemeFonts {
   major: string
   /** a:minorFont a:latin typeface (body) */
   minor: string
-  /** a:ea typeface override for both, optional */
+  /** a:minorFont a:ea typeface (body east-asian), optional */
   eastAsia?: string
+  /** a:majorFont a:ea typeface (heading east-asian), optional */
+  majorEastAsia?: string
+  /** a:majorFont / a:minorFont a:cs typefaces (complex script), optional */
+  majorCs?: string
+  minorCs?: string
 }
 
 /** Color scheme values (hex without '#') from a:clrScheme. */
@@ -980,6 +1009,8 @@ export interface ParsedDoc {
   footerText?: string | null
   /** the default footer contains an automatic page number field */
   footerHasPageNumber?: boolean
+  /** the default header contains an automatic page number field */
+  headerHasPageNumber?: boolean
   /** "different first page" (w:titlePg in a sectPr) */
   titlePg?: boolean
   /** "different odd & even pages" (settings.xml w:evenAndOddHeaders) */

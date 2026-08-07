@@ -35,6 +35,8 @@ import {
   IconObjFlipH,
   IconObjFlipV,
   IconPaste,
+  IconPlayCurrent,
+  IconPlayFromStart,
   IconPosition,
   IconSection,
   IconShrinkFont,
@@ -45,6 +47,7 @@ import {
   FONT_FAMILIES,
   FONT_SIZES,
   Group,
+  LayoutList,
   RbCaret,
   TEXT_COLORS,
   closeSiblingPanels,
@@ -58,6 +61,7 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
     canDistribute,
     canPaste,
     curBulletChar,
+    curAlign,
     curFontFamily,
     curFontSizeMixed,
     curFontSizePt,
@@ -69,6 +73,7 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
     hasSelection,
     hasTextSelection,
     layouts,
+    layoutSize,
     onAddSection,
     onAddSlide,
     onAddSlideWithLayout,
@@ -89,6 +94,7 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
     onPaste,
     onResetLayout,
     onSetLayout,
+    onSlideShow,
     onStrike,
     onTextColor,
     onTextToggle,
@@ -125,8 +131,12 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
     setParaOpen,
     setSizeDraft,
     setSizeOpen,
+    setSlideShowFromStart,
+    setSlideShowOpen,
     sizeDraft,
     sizeOpen,
+    slideShowFromStart,
+    slideShowOpen,
     t,
   } = rb
   const [hangDraft, setHangDraft] = useState('')
@@ -247,6 +257,69 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
         </div>
       </Group>
       <div className="ribbon-sep" />
+      <Group label={t('ribbonTabSlideShow')}>
+        <div className="rb-drop-wrap">
+          <button
+            className="rb-big"
+            disabled={!hasDoc}
+            onClick={() => onSlideShow(slideShowFromStart)}
+            title={t(slideShowFromStart ? 'ribbonFromBeginningTip' : 'ribbonFromCurrentTip')}
+          >
+            <span className="rb-big-icon">
+              {slideShowFromStart ? (
+                <IconPlayFromStart size={BIG} />
+              ) : (
+                <IconPlayCurrent size={BIG} />
+              )}
+              <span
+                className={`rb-caret-hit${slideShowOpen ? ' active' : ''}`}
+                onMouseDown={(e) => {
+                  e.stopPropagation()
+                  closeSiblingPanels(e, closePanels, 'slideShow')
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (hasDoc) setSlideShowOpen((v) => !v)
+                }}
+              >
+                <RbCaret />
+              </span>
+            </span>
+            <span>{t(slideShowFromStart ? 'ribbonFromBeginning' : 'ribbonFromCurrent')}</span>
+          </button>
+          {slideShowOpen && (
+            <div className="rb-drop rb-menu" onMouseDown={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => {
+                  setSlideShowOpen(false)
+                  setSlideShowFromStart(true)
+                  onSlideShow(true)
+                }}
+                title={t('ribbonFromBeginningTip')}
+              >
+                <span className="rb-menu-glyph">
+                  <IconPlayFromStart size={20} />
+                </span>
+                {t('ribbonFromBeginning')}
+              </button>
+              <button
+                onClick={() => {
+                  setSlideShowOpen(false)
+                  setSlideShowFromStart(false)
+                  onSlideShow(false)
+                }}
+                title={t('ribbonFromCurrentTip')}
+              >
+                <span className="rb-menu-glyph">
+                  <IconPlayCurrent size={20} />
+                </span>
+                {t('ribbonFromCurrent')}
+              </button>
+            </div>
+          )}
+        </div>
+      </Group>
+      <div className="ribbon-sep" />
       <Group
         label={t('ribbonGroupSlides')}
         groupId="slides"
@@ -271,7 +344,7 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
               <IconNewSlide size={BIG} />
               <span
                 className={`rb-caret-hit${layoutOpen ? ' active' : ''}`}
-                title={t('ribbonChooseLayout')}
+                title={t('ribbonChooseLayoutNew')}
                 onMouseDown={(e) => {
                   e.stopPropagation()
                   closeSiblingPanels(e, closePanels, 'layout')
@@ -288,52 +361,15 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
           </button>
           {layoutOpen && (
             <div className="rb-drop rb-layout-panel" onMouseDown={(e) => e.stopPropagation()}>
-              <div className="rb-drop-title">{t('ribbonChooseLayout')}</div>
-              <div className="rb-layout-list">
-                {(layouts ?? []).map((lay) => (
-                  <button
-                    key={lay.path}
-                    className="rb-layout-item"
-                    onClick={() => {
-                      setLayoutOpen(false)
-                      onAddSlideWithLayout(lay.path)
-                    }}
-                    title={lay.name}
-                  >
-                    <div className="rb-layout-preview">
-                      {lay.placeholders.map((ph, i) => {
-                        const S = 120,
-                          H = 68 // preview box size (px)
-                        const EMU = 9144000 // typical 10" slide width in EMU
-                        const EMU_H = 5143500
-                        const x = Math.round((ph.x / EMU) * S)
-                        const y = Math.round((ph.y / EMU_H) * H)
-                        const w = Math.max(8, Math.round((ph.cx / EMU) * S))
-                        const h = Math.max(6, Math.round((ph.cy / EMU_H) * H))
-                        return (
-                          <div
-                            key={i}
-                            className="rb-layout-ph"
-                            style={{ left: x, top: y, width: w, height: h }}
-                          >
-                            <span>
-                              {ph.type === 'title' || ph.type === 'ctrTitle'
-                                ? 'T'
-                                : ph.type === 'body' || ph.type === 'obj'
-                                  ? '≡'
-                                  : ''}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="rb-layout-name">{lay.name}</div>
-                  </button>
-                ))}
-                {(layouts ?? []).length === 0 && (
-                  <div className="rb-layout-empty">{t('ribbonNoLayouts')}</div>
-                )}
-              </div>
+              <div className="rb-drop-title">{t('ribbonChooseLayoutNew')}</div>
+              <LayoutList
+                layouts={layouts}
+                size={layoutSize}
+                onPick={(path) => {
+                  setLayoutOpen(false)
+                  onAddSlideWithLayout(path)
+                }}
+              />
             </div>
           )}
         </div>
@@ -356,52 +392,15 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
           </button>
           {layoutPickOpen && (
             <div className="rb-drop rb-layout-drop" onMouseDown={(e) => e.stopPropagation()}>
-              <div className="rb-drop-title">{t('ribbonChooseLayout')}</div>
-              <div className="rb-layout-list">
-                {(layouts ?? []).map((lay) => (
-                  <button
-                    key={lay.path}
-                    className="rb-layout-item"
-                    onClick={() => {
-                      setLayoutPickOpen(false)
-                      onSetLayout(lay.path)
-                    }}
-                    title={lay.name}
-                  >
-                    <div className="rb-layout-preview">
-                      {lay.placeholders.map((ph, i) => {
-                        const S = 120,
-                          H = 68
-                        const EMU = 9144000
-                        const EMU_H = 5143500
-                        const x = Math.round((ph.x / EMU) * S)
-                        const y = Math.round((ph.y / EMU_H) * H)
-                        const w = Math.max(8, Math.round((ph.cx / EMU) * S))
-                        const h = Math.max(6, Math.round((ph.cy / EMU_H) * H))
-                        return (
-                          <div
-                            key={i}
-                            className="rb-layout-ph"
-                            style={{ left: x, top: y, width: w, height: h }}
-                          >
-                            <span>
-                              {ph.type === 'title' || ph.type === 'ctrTitle'
-                                ? 'T'
-                                : ph.type === 'body' || ph.type === 'obj'
-                                  ? '≡'
-                                  : ''}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="rb-layout-name">{lay.name}</div>
-                  </button>
-                ))}
-                {(layouts ?? []).length === 0 && (
-                  <div className="rb-layout-empty">{t('ribbonNoLayouts')}</div>
-                )}
-              </div>
+              <div className="rb-drop-title">{t('ribbonChooseLayoutChange')}</div>
+              <LayoutList
+                layouts={layouts}
+                size={layoutSize}
+                onPick={(path) => {
+                  setLayoutPickOpen(false)
+                  onSetLayout(path)
+                }}
+              />
               <div className="rb-menu-div" />
               <button
                 className="rb-layout-reset"
@@ -940,7 +939,7 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
                   ).map(([align, icon, label]) => (
                     <button
                       key={align}
-                      className="rb-icon"
+                      className={`rb-icon ${curAlign === align ? 'active' : ''}`}
                       disabled={!editing && !hasSelection}
                       title={label}
                       onMouseDown={(e) => {
