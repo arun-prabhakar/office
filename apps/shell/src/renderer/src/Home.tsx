@@ -387,10 +387,6 @@ function ProjectPanel({ projects, selectedId, onSelect, onRefresh }: ProjectPane
 // ── Settings entry (bottom-left) ──────────────────────────
 // Language switching and update channel live in this popup menu.
 
-const LOGIN_POLL_MS = 2500
-/** fallback deadline when the CLI does not report expires_in (device codes live ~300s) */
-const LOGIN_MAX_WAIT_MS = 300_000
-
 // sorted by ISO 639 language code — native-script labels have no natural
 // shared alphabet, so the code is the ordering key
 const LANG_OPTIONS = [
@@ -722,7 +718,12 @@ function SettingsEntry() {
         <span className="account-avatar">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <circle cx="8" cy="8" r="6.3" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M8 4.6v3.4M8 11v.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path
+              d="M8 4.6v3.4M8 11v.01"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
           </svg>
         </span>
         <span className="account-text">
@@ -1086,10 +1087,17 @@ export function Home() {
     void window.aiOffice.newSlide(selectedProjectId ? { projectId: selectedProjectId } : undefined)
   }
 
+  const handleNewMarkdown = () => {
+    void window.aiOffice.newMarkdown(
+      selectedProjectId ? { projectId: selectedProjectId } : undefined,
+    )
+  }
+
   const NEW_ITEMS = [
     { ext: 'docx', title: t('newDoc'), sub: '.docx', action: handleNewDoc },
     { ext: 'xlsx', title: t('newSheet'), sub: '.xlsx', action: handleNewSheet },
     { ext: 'pptx', title: t('newSlide'), sub: '.pptx', action: handleNewSlide },
+    { ext: 'md', title: t('newMarkdown'), sub: '.md', action: handleNewMarkdown },
   ]
 
   function renderQuickCards() {
