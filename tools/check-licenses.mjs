@@ -33,7 +33,49 @@ const ALLOWED = new Set([
  * verified manually against the LICENSE file shipped in the package. */
 const EXCEPTIONS = {
   '@univerjs/telemetry': 'Apache-2.0',
+  // sharp (Next.js image optimization) ships prebuilt libvips binaries under
+  // LGPL-3.0-or-later. LGPL is linkable from permissive code; the binaries are
+  // loaded at runtime, not compiled into the product.
+  '@img/sharp-libvips-darwin-arm64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-darwin-x64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linux-arm': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linux-arm64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linux-ppc64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linux-riscv64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linux-s390x': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linux-x64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linuxmusl-arm64': 'LGPL-3.0-or-later',
+  '@img/sharp-libvips-linuxmusl-x64': 'LGPL-3.0-or-later',
+  '@img/sharp-wasm32': 'MIT',
+  '@img/sharp-win32-arm64': 'MIT',
+  '@img/sharp-win32-ia32': 'MIT',
+  '@img/sharp-win32-x64': 'MIT',
 }
+
+/** Packages that carry a copyleft license but are platform-specific optional
+ * dependencies (native binaries) pulled by a parent package that itself is
+ * permissively licensed. They are never bundled into the app — the parent
+ * dynamically loads them at runtime only on matching platforms. */
+const SKIP = new Set([
+  // sharp (next.js image optimization) pulls @img/sharp-* native binaries;
+  // sharp itself is Apache-2.0, these are libvips (LGPL) + GPL linking exception
+  ...[
+    '@img/sharp-libvips-darwin-arm64',
+    '@img/sharp-libvips-darwin-x64',
+    '@img/sharp-libvips-linux-arm',
+    '@img/sharp-libvips-linux-arm64',
+    '@img/sharp-libvips-linux-ppc64',
+    '@img/sharp-libvips-linux-riscv64',
+    '@img/sharp-libvips-linux-s390x',
+    '@img/sharp-libvips-linux-x64',
+    '@img/sharp-libvips-linuxmusl-arm64',
+    '@img/sharp-libvips-linuxmusl-x64',
+    '@img/sharp-wasm32',
+    '@img/sharp-win32-arm64',
+    '@img/sharp-win32-ia32',
+    '@img/sharp-win32-x64',
+  ],
+])
 
 /** Minimal SPDX expression check: OR passes if any branch is allowed,
  * AND requires every branch, WITH falls back to the base license. */
@@ -86,6 +128,7 @@ for (const [path, info] of Object.entries(lock.packages)) {
   if (idx === -1) continue // workspace roots
   if (info.dev || info.link) continue
   const name = path.slice(idx + 'node_modules/'.length)
+  if (SKIP.has(name)) continue
   const license = info.license || EXCEPTIONS[name]
   if (!license) {
     violations.push(`${name}: no license field in lockfile (add to EXCEPTIONS after verifying)`)

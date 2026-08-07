@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentToolCall } from '@prismoffice/agent-core'
 import { streamForProvider } from '../src/stream'
 import {
-  AI_CONNECT_TIMEOUT_MS,
+
   AiTimeoutError,
   createStreamWatchdog,
 } from '../src/watchdog'

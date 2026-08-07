@@ -106,6 +106,14 @@ import {
   requestPdfSaveAs,
   setPdfSaveAsInFlight,
 } from '../../../pdf/src/main/pdf-main'
+import {
+  configureMarkdownRuntime,
+  markdownFileRenamed,
+  markdownIsDirty,
+  requestMarkdownClose,
+  requestMarkdownSave,
+  markdownFilePath,
+} from '../../../markdown/src/main/markdown-main'
 import type { RecentEntry, RecentPage, RenameResult } from '../shared/home-api'
 import { HOME_CHANNELS } from '../shared/home-api'
 import type { TabKind } from '../shared/tabs-api'
@@ -160,6 +168,9 @@ const SLIDES_OUT = app.isPackaged
 const PDF_OUT = app.isPackaged
   ? join(process.resourcesPath, 'modules', 'pdf')
   : join(APPS_ROOT, 'pdf', 'out')
+const MD_OUT = app.isPackaged
+  ? join(process.resourcesPath, 'modules', 'markdown')
+  : join(APPS_ROOT, 'markdown', 'out')
 const SIDECAR_BIN = app.isPackaged
   ? join(process.resourcesPath, 'native', SIDECAR_EXE)
   : join(APPS_ROOT, 'sheets', 'native', 'xlsx-engine', 'target', 'release', SIDECAR_EXE)
@@ -168,6 +179,11 @@ configureDocsRuntime({
   preloadPath: join(DOCS_OUT, 'preload', 'index.js'),
   rendererUrl: process.env.DOCS_RENDERER_URL,
   rendererFile: join(DOCS_OUT, 'renderer', 'index.html'),
+})
+configureMarkdownRuntime({
+  preloadPath: join(MD_OUT, 'preload', 'index.js'),
+  rendererUrl: process.env.MARKDOWN_RENDERER_URL,
+  rendererFile: join(MD_OUT, 'renderer', 'index.html'),
 })
 configureSheetsRuntime({
   preloadPath: join(SHEETS_OUT, 'preload', 'index.js'),
