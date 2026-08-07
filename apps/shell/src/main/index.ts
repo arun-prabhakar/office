@@ -1444,6 +1444,7 @@ const TAB_MENU_ICON: Record<TabKind, keyof MenuIconSet> = {
   sheets: 'xlsx',
   slides: 'pptx',
   pdf: 'pdf',
+  markdown: 'docx',
 }
 
 function registerTabsIpc(): void {
