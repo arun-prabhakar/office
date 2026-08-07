@@ -1,82 +1,78 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { AgentMessage } from '@genoffice/agent-core'
-import { streamForProvider } from '../src/stream'
-import { okResponse, sseStream } from './test-utils'
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
-
-const config = { apiKey: 'test-key', model: 'test-model' }
-
-function callbacks() {
-  return {
-    signal: new AbortController().signal,
-    onDelta: () => {},
-    onToolCall: () => {},
-  }
-}
-
-/** run one turn against a stubbed fetch and return the parsed request body */
-async function requestBodyFor(
-  provider: 'anthropic' | 'gemini',
-  messages: AgentMessage[],
-): Promise<any> {
-  const fetchMock = vi.fn().mockResolvedValue(okResponse(sseStream([])))
-  vi.stubGlobal('fetch', fetchMock)
-  // the empty fixture stream legitimately rejects with "returned no content";
-  // these tests only inspect the outgoing request body
-  await streamForProvider(provider, config, 'sys', messages, [], 1024, callbacks()).catch(() => {})
-  return JSON.parse(fetchMock.mock.calls[0][1].body as string)
-}
+import { toCoreMessages } from '../src/messages'
 
 const IMAGE = { base64: 'aGVsbG8=', mime: 'image/png' }
 
-describe('anthropic user message with images', () => {
-  it('sends a content array of text + image blocks', async () => {
-    const body = await requestBodyFor('anthropic', [
-      { role: 'user', text: 'look at this image', images: [IMAGE] },
+describe('toCoreMessages: user images', () => {
+  it('upgrades to a text + image parts array when images are present', () => {
+    const msgs = toCoreMessages([{ role: 'user', text: 'look at this', images: [IMAGE] }])
+    expect((msgs[0] as { content: unknown }).content).toEqual([
+      { type: 'text', text: 'look at this' },
+      { type: 'image', image: expect.any(Uint8Array), mediaType: 'image/png' },
     ])
-    expect(body.messages[0]).toEqual({
-      role: 'user',
-      content: [
-        { type: 'text', text: 'look at this image' },
-        {
-          type: 'image',
-          source: { type: 'base64', media_type: 'image/png', data: 'aGVsbG8=' },
-        },
-      ],
-    })
   })
 
-  it('omits the text block when text is empty', async () => {
-    const body = await requestBodyFor('anthropic', [{ role: 'user', text: '', images: [IMAGE] }])
-    expect(body.messages[0].content).toHaveLength(1)
-    expect(body.messages[0].content[0].type).toBe('image')
+  it('omits the text part when text is empty', () => {
+    const msgs = toCoreMessages([{ role: 'user', text: '', images: [IMAGE] }])
+    const content = (msgs[0] as { content: unknown[] }).content
+    expect(content).toHaveLength(1)
+    expect((content[0] as { type: string }).type).toBe('image')
   })
 
-  it('keeps plain string content when no images (existing behavior)', async () => {
-    const body = await requestBodyFor('anthropic', [{ role: 'user', text: 'hi' }])
-    expect(body.messages[0]).toEqual({ role: 'user', content: 'hi' })
+  it('keeps plain string content when no images', () => {
+    const msgs = toCoreMessages([{ role: 'user', text: 'hi' } as AgentMessage])
+    expect((msgs[0] as { content: unknown }).content).toBe('hi')
   })
 })
 
-describe('gemini user message with images', () => {
-  it('sends parts with text + inline_data', async () => {
-    const body = await requestBodyFor('gemini', [
-      { role: 'user', text: 'look at this image', images: [IMAGE] },
+describe('toCoreMessages: assistant turns', () => {
+  it('maps text + tool calls to text and tool-call parts', () => {
+    const msgs = toCoreMessages([
+      {
+        role: 'assistant',
+        text: 'ok',
+        toolCalls: [{ id: 't1', name: 'do_thing', input: { a: 1 } }],
+      },
     ])
-    expect(body.contents[0]).toEqual({
-      role: 'user',
-      parts: [
-        { text: 'look at this image' },
-        { inline_data: { mime_type: 'image/png', data: 'aGVsbG8=' } },
-      ],
-    })
+    expect((msgs[0] as { content: unknown }).content).toEqual([
+      { type: 'text', text: 'ok' },
+      { type: 'tool-call', toolCallId: 't1', toolName: 'do_thing', input: { a: 1 } },
+    ])
   })
 
-  it('keeps single text part when no images (existing behavior)', async () => {
-    const body = await requestBodyFor('gemini', [{ role: 'user', text: 'hi' }])
-    expect(body.contents[0]).toEqual({ role: 'user', parts: [{ text: 'hi' }] })
+  it('an assistant turn with no text and no tools still gets a placeholder part', () => {
+    const msgs = toCoreMessages([{ role: 'assistant', text: '' } as AgentMessage])
+    expect((msgs[0] as { content: unknown }).content).toEqual([
+      { type: 'text', text: '(no content)' },
+    ])
+  })
+})
+
+describe('toCoreMessages: tool results', () => {
+  it('becomes tool-result parts; output wraps as text or error-text by isError', () => {
+    const msgs = toCoreMessages([
+      {
+        role: 'tool',
+        results: [
+          { id: 't1', name: 'do_thing', output: 'done' },
+          { id: 't2', name: 'do_thing', output: 'boom', isError: true },
+        ],
+      },
+    ])
+    expect((msgs[0] as { content: unknown }).content).toEqual([
+      {
+        type: 'tool-result',
+        toolCallId: 't1',
+        toolName: 'do_thing',
+        output: { type: 'text', value: 'done' },
+      },
+      {
+        type: 'tool-result',
+        toolCallId: 't2',
+        toolName: 'do_thing',
+        output: { type: 'error-text', value: 'boom' },
+      },
+    ])
   })
 })

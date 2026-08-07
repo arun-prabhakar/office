@@ -4,7 +4,7 @@ import { AI_PROVIDERS, defaultAiSettings, resolveAiSettings } from '../src/provi
 describe('defaultAiSettings', () => {
   it('gives every provider its default model and an empty key by default', () => {
     const settings = defaultAiSettings()
-    expect(settings.provider).toBe('genspark')
+    expect(settings.provider).toBe('anthropic')
     for (const meta of AI_PROVIDERS) {
       expect(settings.providers[meta.id].apiKey).toBe('')
       expect(settings.providers[meta.id].model).toBe(meta.defaultModel)
@@ -62,4 +62,14 @@ describe('resolveAiSettings', () => {
     // provider not mentioned in stored.providers keeps the computed default
     expect(resolved.providers.anthropic.apiKey).toBe('preset-key')
   })
+
+  it("migrates a stored 'genspark' provider (removed) to the default (anthropic)", () => {
+    const defaults = defaultAiSettings()
+    const resolved = resolveAiSettings(
+      { provider: 'genspark' as never, providers: {} as never },
+      defaults,
+    )
+    expect(resolved.provider).toBe('anthropic')
+  })
 })
+

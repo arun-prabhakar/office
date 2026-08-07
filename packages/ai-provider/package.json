@@ -14,7 +14,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@genoffice/agent-core": "*"
+    "@genoffice/agent-core": "*",
+    "@ai-sdk/anthropic": "^2",
+    "@ai-sdk/google": "^2",
+    "@ai-sdk/openai": "^2",
+    "ai": "^5"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

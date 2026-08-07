@@ -4,7 +4,6 @@ import { saveEditSelection } from '../TextEditOverlay'
 import { armColorInput } from '../color-input'
 import { displayFontFamily } from '../konva-adapter'
 import {
-  GensparkMark,
   IconAiBeautify,
   IconAiFactCheck,
   IconAiImage,
@@ -13,6 +12,7 @@ import {
   IconAlignLeft,
   IconAlignRight,
   IconBullets,
+  IconSparkle,
   IconClearFormat,
   IconCopy,
   IconCut,
@@ -141,16 +141,16 @@ export function RibbonHomeTab({ rb }: { rb: RibbonTabCtx }) {
   }
   return (
     <>
-      <Group label="Genspark AI">
+      <Group label={t('ribbonAiAssistant')}>
         <button
           className={`rb-big ai-entry${aiOpen ? ' active' : ''}`}
           title={t('aiOpenAssistant')}
           onClick={onToggleAi}
         >
           <span className="rb-big-icon">
-            <GensparkMark size={26} />
+            <IconSparkle size={26} />
           </span>
-          <span>Genspark AI</span>
+          <span>{t('ribbonAiAssistant')}</span>
         </button>
         <button
           className="rb-big ai-entry"
