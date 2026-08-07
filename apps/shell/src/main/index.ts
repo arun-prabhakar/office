@@ -1206,6 +1206,14 @@ function newSlideTab(): void {
   }
 }
 
+function newMarkdownTab(): void {
+  try {
+    tabManager?.openMarkdownTab()
+  } catch (err) {
+    surfaceNewTabError(err)
+  }
+}
+
 /**
  * The sheets renderer subscribes to menu actions only after Univer finishes
  * mounting (seconds on cold start), so a single 'open' can fire into the
@@ -1301,6 +1309,13 @@ function registerHomeIpc(): void {
       pendingNewFileProject.set('slide', opts.projectId)
     }
     newSlideTab()
+  })
+
+  ipcMain.handle(HOME_CHANNELS.newMarkdown, (_event, opts?: { projectId?: string }) => {
+    if (opts?.projectId && opts.projectId !== 'default') {
+      pendingNewFileProject.set('markdown', opts.projectId)
+    }
+    newMarkdownTab()
   })
 
   ipcMain.handle(HOME_CHANNELS.removeRecent, (_event, paths: unknown) => {
