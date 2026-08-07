@@ -3,8 +3,8 @@ import type {
   AgentStreamHandle,
   AgentStreamRequest,
   AgentTransport,
-} from '@genoffice/agent-core'
-import type { AiStreamChunk } from '@genoffice/ai-provider'
+} from '@prismoffice/agent-core'
+import type { AiStreamChunk } from '@prismoffice/ai-provider'
 
 /**
  * AgentTransport over HTTP/SSE for the webapp. Posts one model turn

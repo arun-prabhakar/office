@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { SHAPE_GALLERY_GROUPS, ShapePreview } from '@genoffice/ui'
+import { SHAPE_GALLERY_GROUPS, ShapePreview } from '@prismoffice/ui'
 
 import {
   CaretIcon,

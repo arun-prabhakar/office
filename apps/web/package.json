@@ -1,9 +1,9 @@
 {
-  "name": "@genoffice/web",
+  "name": "@prismoffice/web",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
-  "description": "GenOffice on the web (Next.js) — AI-native office suite, browser edition",
+  "description": "PrismOffice on the web (Next.js) — AI-native office suite, browser edition",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,15 +11,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@genoffice/agent-core": "*",
-    "@genoffice/ai-provider": "*",
-    "@genoffice/docx-engine": "*",
+    "@prismoffice/agent-core": "*",
+    "@prismoffice/ai-provider": "*",
+    "@prismoffice/docx-engine": "*",
     "@ai-sdk/anthropic": "^2",
     "@ai-sdk/react": "^2",
     "ai": "^5",
     "next": "^15",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "@tiptap/core": "^3.29.2",
+    "@tiptap/pm": "^3.29.2",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
+    "@tiptap/markdown": "^3.29.2"
   },
   "devDependencies": {
     "@types/node": "^22",

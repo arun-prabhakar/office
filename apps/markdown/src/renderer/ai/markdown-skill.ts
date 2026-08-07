@@ -1,9 +1,9 @@
-import type { AgentSkill } from '@genoffice/agent-core'
+import type { AgentSkill } from '@prismoffice/agent-core'
 import type { Editor } from '@tiptap/core'
 import { AGENT_TOOLS, buildDocContext, executeTool, markDocSeen } from './tools'
 
 const AGENT_SYSTEM_PROMPT = [
-  'You are the writing assistant inside GenOffice Markdown, a markdown document editor.',
+  'You are the writing assistant inside PrismOffice Markdown, a markdown document editor.',
   'You read and edit the open document through tools that address top-level blocks by 0-based index.',
   '',
   '## Editing rules',

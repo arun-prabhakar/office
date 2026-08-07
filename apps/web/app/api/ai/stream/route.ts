@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: anthropic(process.env.AI_MODEL ?? 'claude-sonnet-4-5'),
-    system: 'You are a helpful assistant inside GenOffice on the web.',
+    system: 'You are a helpful assistant inside PrismOffice on the web.',
     messages: convertToModelMessages(messages),
   })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentMessage } from '@genoffice/agent-core'
+import type { AgentMessage } from '@prismoffice/agent-core'
 import { toCoreMessages } from '../src/messages'
 
 const IMAGE = { base64: 'aGVsbG8=', mime: 'image/png' }

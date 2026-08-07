@@ -1,4 +1,4 @@
-import { parseDocx, saveDocx, type SaveBlock } from '@genoffice/docx-engine'
+import { parseDocx, saveDocx, type SaveBlock } from '@prismoffice/docx-engine'
 
 // Web docx save (round-trip). The client sends the original .docx bytes back;
 // the server re-parses (stateless) and runs `saveDocx`, returning the new .docx.

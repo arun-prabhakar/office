@@ -35,7 +35,7 @@ import {
   type TableModel,
   type TextboxDisplay,
   type TextboxParaPatch,
-} from '@genoffice/docx-engine'
+} from '@prismoffice/docx-engine'
 import { t } from '../i18n/locale'
 import { inlineMathML } from './equation'
 import { isStraightLineKind } from './shape-svg'

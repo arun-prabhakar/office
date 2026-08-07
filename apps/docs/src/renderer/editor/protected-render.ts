@@ -2,7 +2,7 @@ import type { Node as PmNode } from '@tiptap/pm/model'
 import {} from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import {} from '@tiptap/pm/tables'
-import { WORDART_PRESETS, wordArtStrokePx } from '@genoffice/ui'
+import { WORDART_PRESETS, wordArtStrokePx } from '@prismoffice/ui'
 import { cssDualFontFamily, cssFontFamily } from '../line-metrics'
 import { shapeBackgroundCss } from './shape-svg'
 import { t } from '../i18n/locale'
@@ -12,7 +12,7 @@ import {
   type FormulaDisplay,
   type TableModel,
   type TextboxDisplay,
-} from '@genoffice/docx-engine'
+} from '@prismoffice/docx-engine'
 
 /**
  * Custom schema mirroring the docx-engine Block model 1:1.

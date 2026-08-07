@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 
+type DocRun = { text: string; bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string }
 type ContentBlock =
-  | { type: 'paragraph' | 'heading' | 'listItem'; text: string; level?: number }
+  | { type: 'paragraph' | 'heading' | 'listItem'; runs: DocRun[]; level?: number }
   | { type: 'image' | 'table' | 'passthrough'; text: string }
 
 type OpenResult = {
@@ -12,6 +13,15 @@ type OpenResult = {
   blockCount?: number
   content?: ContentBlock[]
   error?: string
+}
+
+function Run({ r }: { r: DocRun }) {
+  let el: React.ReactNode = r.text
+  if (r.strike) el = <s>{el}</s>
+  if (r.underline) el = <u>{el}</u>
+  if (r.italic) el = <em>{el}</em>
+  if (r.bold) el = <strong>{el}</strong>
+  return <span style={r.color ? { color: `#${r.color}` } : undefined}>{el}</span>
 }
 
 export default function Page() {
@@ -66,11 +76,11 @@ export default function Page() {
   }
 
   return (
-    <main style={{ maxWidth: 760, margin: '0 auto', padding: 24 }}>
-      <h1>Docs (web) — open .docx</h1>
+    <main style={{ maxWidth: 820, margin: '0 auto', padding: 24 }}>
+      <h1>Docs (web) — formatted .docx viewer</h1>
       <p style={{ color: '#666' }}>
-        Upload a <code>.docx</code>; the server parses it with the docx-engine and renders the
-        content read-only. The byte-round-trip engine runs server-side in Next.js.
+        Upload a <code>.docx</code>; the server parses it and renders content with formatting
+        (bold/italic/underline/strike/color). Byte-round-trip save + append run server-side.
       </p>
 
       <input
@@ -108,18 +118,25 @@ export default function Page() {
               if (b.type === 'heading') {
                 const lvl = Math.min(Math.max(b.level ?? 2, 1), 6)
                 const Tag = (`h${lvl}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6')
-                return <Tag key={i}>{b.text || '\u00a0'}</Tag>
+                return (
+                  <Tag key={i}>{b.runs.map((r, j) => <Run key={j} r={r} />)}</Tag>
+                )
               }
               if (b.type === 'listItem')
                 return (
                   <div key={i} style={{ paddingLeft: 16 }}>
-                    • {b.text}
+                    • {b.runs.map((r, j) => <Run key={j} r={r} />)}
                   </div>
                 )
-              if (b.type === 'paragraph') return <p key={i}>{b.text || '\u00a0'}</p>
+              if (b.type === 'paragraph')
+                return (
+                  <p key={i}>
+                    {b.runs.length ? b.runs.map((r, j) => <Run key={j} r={r} />) : '\u00a0'}
+                  </p>
+                )
               return (
                 <p key={i} style={{ color: '#888', fontStyle: 'italic' }}>
-                  [{b.type}] {b.text}
+                  [{b.type}] {'text' in b ? b.text : ''}
                 </p>
               )
             })}

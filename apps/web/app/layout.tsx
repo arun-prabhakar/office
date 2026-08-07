@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import './globals.css'
 
 export const metadata = {
-  title: 'GenOffice (web)',
+  title: 'PrismOffice (web)',
   description: 'AI-native office suite — browser edition',
 }
 

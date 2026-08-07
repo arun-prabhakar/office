@@ -14,7 +14,7 @@ export interface PickImageResult {
   name: string
 }
 
-// ---- AI provider settings/config/streaming: canonical types live in @genoffice/ai-provider ----
+// ---- AI provider settings/config/streaming: canonical types live in @prismoffice/ai-provider ----
 
 import type {
   AiChatRequest,
@@ -22,7 +22,7 @@ import type {
   AiSettings,
   AiStreamChunk,
   AiStreamRequest,
-} from '@genoffice/ai-provider'
+} from '@prismoffice/ai-provider'
 
 export type {
   AiChatRequest,
@@ -33,17 +33,17 @@ export type {
   AiSettings,
   AiStreamChunk,
   AiStreamRequest,
-} from '@genoffice/ai-provider'
-export { AI_PROVIDERS } from '@genoffice/ai-provider'
+} from '@prismoffice/ai-provider'
+export { AI_PROVIDERS } from '@prismoffice/ai-provider'
 
-// ---- agent protocol: canonical types live in @genoffice/agent-core ----
+// ---- agent protocol: canonical types live in @prismoffice/agent-core ----
 
 export type {
   AgentMessage,
   AgentToolCall,
   AgentToolDef,
   AgentToolResult,
-} from '@genoffice/agent-core'
+} from '@prismoffice/agent-core'
 
 // ---- chat attachments (local files fed to the agent via tools) ----
 

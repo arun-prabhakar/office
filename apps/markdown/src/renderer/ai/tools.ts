@@ -1,6 +1,6 @@
 import type { Editor, JSONContent } from '@tiptap/core'
 import type { Node as PmNode } from '@tiptap/pm/model'
-import type { AgentToolCall, AgentToolDef, ToolExecution } from '@genoffice/agent-core'
+import type { AgentToolCall, AgentToolDef, ToolExecution } from '@prismoffice/agent-core'
 import { markAiRange } from '../editor/aiHighlight'
 import { t } from '../i18n/locale'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { AgentLoop, composeSkills, type AgentSkill } from '@genoffice/agent-core'
+import { AgentLoop, composeSkills, type AgentSkill } from '@prismoffice/agent-core'
 import { createFetchTransport } from '@/lib/fetch-transport'
 
 // P1 proof: a tool-calling AgentLoop running entirely in the browser over the

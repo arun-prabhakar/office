@@ -2,7 +2,7 @@ import { jsonSchema, tool, type LanguageModel, type ToolSet } from 'ai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
-import type { AgentToolDef } from '@genoffice/agent-core'
+import type { AgentToolDef } from '@prismoffice/agent-core'
 import type { AiProviderConfig, AiProviderId } from './types'
 
 /**

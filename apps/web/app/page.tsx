@@ -10,7 +10,7 @@ export default function Page() {
 
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
-      <h1>GenOffice web — AI proof (P0)</h1>
+      <h1>PrismOffice web — AI proof (P0)</h1>
       <p style={{ color: '#666' }}>
         Server-side AI proxy + AI SDK streaming, end-to-end. Set <code>ANTHROPIC_API_KEY</code> to
         talk to a real model.

@@ -4,8 +4,8 @@ import type {
   AiChatResponse,
   AiSettings,
   AiStreamChunk,
-} from '@genoffice/ai-provider'
-import type { ProjectApi } from '@genoffice/project-store'
+} from '@prismoffice/ai-provider'
+import type { ProjectApi } from '@prismoffice/project-store'
 import type {
   AttachmentAddResult,
   AttachmentImageResult,

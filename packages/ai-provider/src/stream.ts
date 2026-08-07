@@ -1,5 +1,5 @@
 import { streamText } from 'ai'
-import type { AgentMessage, AgentToolCall, AgentToolDef } from '@genoffice/agent-core'
+import type { AgentMessage, AgentToolCall, AgentToolDef } from '@prismoffice/agent-core'
 import { modelFor, toolsFor } from './models'
 import { toCoreMessages } from './messages'
 import type { AiProviderConfig, AiProviderId } from './types'

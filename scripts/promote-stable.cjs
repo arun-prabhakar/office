@@ -2,11 +2,11 @@
 /**
  * scripts/promote-stable.cjs — promote an already-published beta build to the
  * stable update channel. No rebuild: the versioned feed archive uploaded at
- * beta-publish time (GenOffice-mac-arm64-<v>.yml / GenOffice-win-<v>.yml) is
+ * beta-publish time (PrismOffice-mac-arm64-<v>.yml / PrismOffice-win-<v>.yml) is
  * re-uploaded as the stable feed (latest-mac.yml / latest.yml). The binaries
  * it points to are already on the CDN under the same prefix.
  *
- * The marketing download aliases (GenOffice.dmg / GenOfficeSetup.exe) also
+ * The marketing download aliases (PrismOffice.dmg / PrismOfficeSetup.exe) also
  * track the stable channel: per-merge beta publishes skip them, and this
  * script re-points each alias by downloading the promoted installer to the
  * runner and re-uploading it under the alias name — the same auth path the
@@ -59,19 +59,19 @@ function argValue(flag) {
 const PLATFORMS = [
   {
     flag: '--mac',
-    archive: (v) => `GenOffice-mac-arm64-${v}.yml`,
+    archive: (v) => `PrismOffice-mac-arm64-${v}.yml`,
     feed: 'latest-mac.yml',
     betaFeed: 'beta-mac.yml',
-    installer: (v) => `GenOffice-${v}-arm64.dmg`,
-    alias: 'GenOffice.dmg',
+    installer: (v) => `PrismOffice-${v}-arm64.dmg`,
+    alias: 'PrismOffice.dmg',
   },
   {
     flag: '--win',
-    archive: (v) => `GenOffice-win-${v}.yml`,
+    archive: (v) => `PrismOffice-win-${v}.yml`,
     feed: 'latest.yml',
     betaFeed: 'beta.yml',
-    installer: (v) => `GenOfficeSetup-v${v}.exe`,
-    alias: 'GenOfficeSetup.exe',
+    installer: (v) => `PrismOfficeSetup-v${v}.exe`,
+    alias: 'PrismOfficeSetup.exe',
   },
 ]
 

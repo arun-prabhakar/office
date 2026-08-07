@@ -1,5 +1,5 @@
-import { streamForProvider, type AiStreamChunk } from '@genoffice/ai-provider'
-import type { AgentMessage, AgentToolDef } from '@genoffice/agent-core'
+import { streamForProvider, type AiStreamChunk } from '@prismoffice/ai-provider'
+import type { AgentMessage, AgentToolDef } from '@prismoffice/agent-core'
 
 // Web agent route: one streamed model turn, proxied server-side so the vendor
 // API key never reaches the browser. This is a thin adapter over the migrated

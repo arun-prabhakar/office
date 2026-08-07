@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AgentToolCall } from '@genoffice/agent-core'
+import type { AgentToolCall } from '@prismoffice/agent-core'
 import { AiCreditsError, streamForProvider } from '../src/stream'
 import { okResponse, sseStream } from './test-utils'
 

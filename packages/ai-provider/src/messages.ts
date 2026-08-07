@@ -1,5 +1,5 @@
 import type { CoreMessage } from 'ai'
-import type { AgentMessage } from '@genoffice/agent-core'
+import type { AgentMessage } from '@prismoffice/agent-core'
 
 /** Decode a raw base64 string (no data: prefix) to bytes, for AI SDK image parts. */
 function base64ToBytes(b64: string): Uint8Array {

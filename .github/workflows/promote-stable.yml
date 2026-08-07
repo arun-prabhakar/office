@@ -3,8 +3,8 @@ name: Promote to Stable
 # Manually promote an already-published beta build to the stable update
 # channel. No rebuild: rewrites latest.yml / latest-mac.yml on the CDN to
 # the versioned feed archive uploaded when the build went to beta, and
-# re-points the marketing download aliases (GenOffice.dmg /
-# GenOfficeSetup.exe) to the promoted version by downloading the installer
+# re-points the marketing download aliases (PrismOffice.dmg /
+# PrismOfficeSetup.exe) to the promoted version by downloading the installer
 # and re-uploading it under the alias name (server-side copy cannot read
 # the private source container).
 # Windows and mac version sequences are independent. Empty inputs default
