@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
-  "description": "PrismOffice on the web (Next.js) — AI-native office suite, browser edition",
+  "description": "PrismOffice on the web (Next.js) \u2014 AI-native office suite, browser edition",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -25,7 +25,8 @@
     "@tiptap/pm": "^3.29.2",
     "@tiptap/react": "^3.29.2",
     "@tiptap/starter-kit": "^3.29.2",
-    "@tiptap/markdown": "^3.29.2"
+    "@tiptap/markdown": "^3.29.2",
+    "pdfjs-dist": "^5"
   },
   "devDependencies": {
     "@types/node": "^22",
