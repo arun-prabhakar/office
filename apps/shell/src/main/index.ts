@@ -1075,6 +1075,7 @@ const DOCX_RE = /\.docx$/i
 const XLSX_RE = /\.(xlsx|xls|csv)$/i
 const PPTX_RE = /\.pptx$/i
 const PDF_RE = /\.pdf$/i
+const MD_RE = /\.(md|markdown)$/i
 
 /** document formats we recognize but don't open — surfaced as a dialog, not silently dropped */
 const UNSUPPORTED_DOC_RE = /\.(doc|rtf|odt|ppt|pps|odp|ods|xlsm|xlsb|pages|key|numbers)$/i
@@ -1090,7 +1091,11 @@ function supportedFileIn(argv: string[]): string | null {
   return (
     argv.find(
       (arg) =>
-        (DOCX_RE.test(arg) || XLSX_RE.test(arg) || PPTX_RE.test(arg) || PDF_RE.test(arg)) &&
+        (DOCX_RE.test(arg) ||
+          XLSX_RE.test(arg) ||
+          PPTX_RE.test(arg) ||
+          PDF_RE.test(arg) ||
+          MD_RE.test(arg)) &&
         existsSync(arg),
     ) ?? null
   )
@@ -1150,6 +1155,11 @@ function openDocumentPath(filePath: string): boolean {
     const existing = tabManager.findPdfTabByPath(filePath)
     if (existing) tabManager.activateTab(existing)
     else tabManager.openPdfTab(filePath)
+    return true
+  }
+  if (MD_RE.test(filePath)) {
+    recordRecentFile(filePath)
+    tabManager.openMarkdownTab(filePath)
     return true
   }
   notifyUnsupportedFile(filePath)
