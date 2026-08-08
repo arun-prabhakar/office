@@ -27,7 +27,8 @@
     "@tiptap/starter-kit": "^3.29.2",
     "@tiptap/markdown": "^3.29.2",
     "pdfjs-dist": "^5",
-    "xlsx": "^0.18"
+    "xlsx": "^0.18",
+    "@prismoffice/pptx-engine": "*"
   },
   "devDependencies": {
     "@types/node": "^22",

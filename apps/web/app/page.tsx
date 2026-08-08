@@ -1,61 +1,112 @@
 'use client'
 
-import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
+import { useState, useEffect } from 'react'
 
-const transport = new DefaultChatTransport({ api: '/api/ai/stream' })
+type Editor = { href: string; title: string; desc: string; icon: string; ext: string }
 
-export default function Page() {
-  const { messages, sendMessage, status, error } = useChat({ transport })
+const EDITORS: Editor[] = [
+  {
+    href: '/docs',
+    title: 'Docs',
+    desc: 'Word processor (.docx) with byte-preserving round-trip',
+    icon: '📝',
+    ext: '.docx',
+  },
+  {
+    href: '/markdown',
+    title: 'Markdown',
+    desc: 'Tiptap markdown editor with AI panel',
+    icon: '📄',
+    ext: '.md',
+  },
+  {
+    href: '/sheets',
+    title: 'Sheets',
+    desc: 'Spreadsheet viewer (.xlsx)',
+    icon: '📊',
+    ext: '.xlsx',
+  },
+  { href: '/pdf', title: 'PDF', desc: 'PDF viewer with page navigation', icon: '📕', ext: '.pdf' },
+  {
+    href: '/agent-demo',
+    title: 'AI Demo',
+    desc: 'Tool-calling agent over HTTP',
+    icon: '🤖',
+    ext: '',
+  },
+]
+
+export default function Home() {
+  const [aiEnabled, setAiEnabled] = useState(true)
+
+  useEffect(() => {
+    setAiEnabled(process.env.NEXT_PUBLIC_AI_ENABLED !== 'false')
+  }, [])
 
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
-      <h1>PrismOffice web — AI proof (P0)</h1>
-      <p style={{ color: '#666' }}>
-        Server-side AI proxy + AI SDK streaming, end-to-end. Set <code>ANTHROPIC_API_KEY</code> to
-        talk to a real model.
-      </p>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        color: '#fff',
+      }}
+    >
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '60px 24px' }}>
+        <h1 style={{ fontSize: 36, fontWeight: 700, marginBottom: 8 }}>PrismOffice</h1>
+        <p style={{ fontSize: 18, color: '#aaa', marginBottom: 40 }}>
+          AI-native office suite — web edition
+        </p>
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {messages.map((m) => (
-          <li
-            key={m.id}
-            style={{ margin: '8px 0', display: 'flex', gap: 8 }}
-            data-role={m.role}
-          >
-            <strong style={{ minWidth: 64 }}>{m.role}:</strong>
-            <span>
-              {m.parts.map((p, i) =>
-                p.type === 'text' ? <span key={i}>{p.text}</span> : null,
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+            gap: 16,
+          }}
+        >
+          {EDITORS.map((e) => (
+            <a
+              key={e.href}
+              href={e.href}
+              style={{
+                display: 'block',
+                padding: 24,
+                borderRadius: 12,
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                textDecoration: 'none',
+                color: '#fff',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(ev) => (ev.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+              onMouseLeave={(ev) => (ev.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+            >
+              <div style={{ fontSize: 32, marginBottom: 8 }}>{e.icon}</div>
+              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>
+                {e.title} {e.ext && <span style={{ fontSize: 13, color: '#888' }}>{e.ext}</span>}
+              </div>
+              <div style={{ fontSize: 13, color: '#aaa' }}>{e.desc}</div>
+            </a>
+          ))}
+        </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          const form = new FormData(e.currentTarget)
-          const text = String(form.get('text') ?? '')
-          if (text.trim()) sendMessage({ text })
-          e.currentTarget.reset()
-        }}
-        style={{ display: 'flex', gap: 8, marginTop: 16 }}
-      >
-        <input
-          name="text"
-          placeholder="Ask the AI…"
-          style={{ flex: 1, padding: 8 }}
-          autoComplete="off"
-        />
-        <button type="submit" disabled={status !== 'ready'} style={{ padding: '8px 16px' }}>
-          Send
-        </button>
-      </form>
-
-      {error && <p style={{ color: 'crimson' }}>{error.message}</p>}
-      <p style={{ color: '#999' }}>status: {status}</p>
-    </main>
+        <div
+          style={{
+            marginTop: 40,
+            padding: 16,
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.05)',
+            fontSize: 13,
+            color: '#888',
+          }}
+        >
+          AI features: {aiEnabled ? '✅ Enabled' : '⛔ Disabled'} — set{' '}
+          <code style={{ color: '#6bf' }}>ANTHROPIC_API_KEY</code> server-side for live AI. Source:{' '}
+          <a href="https://github.com/arun-prabhakar/office" style={{ color: '#6bf' }}>
+            arun-prabhakar/office
+          </a>
+        </div>
+      </div>
+    </div>
   )
 }
